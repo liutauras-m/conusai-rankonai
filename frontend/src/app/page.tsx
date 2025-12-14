@@ -5,15 +5,26 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { LoadingOverlay } from "@/components/ui/spinner"
+import { Turnstile } from "@/components/turnstile"
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
 
 export default function Home() {
 	const [url, setUrl] = useState("")
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+	const [captchaToken, setCaptchaToken] = useState<string | null>(null)
 	const router = useRouter()
 
 	const handleAnalyze = async () => {
 		if (!url) return
+		
+		// Require CAPTCHA in production
+		if (TURNSTILE_SITE_KEY && !captchaToken) {
+			setError("Please complete the CAPTCHA verification")
+			return
+		}
+		
 		setLoading(true)
 		setError(null)
 
@@ -23,12 +34,16 @@ export default function Home() {
 			normalizedUrl = `https://${normalizedUrl}`
 		}
 
-		// Navigate to report page with URL as query param
-		router.push(`/report?url=${encodeURIComponent(normalizedUrl)}`)
+		// Navigate to report page with URL and captcha token as query params
+		const params = new URLSearchParams({ url: normalizedUrl })
+		if (captchaToken) {
+			params.set("token", captchaToken)
+		}
+		router.push(`/report?${params.toString()}`)
 	}
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter" && url) {
+		if (e.key === "Enter" && url && (captchaToken || !TURNSTILE_SITE_KEY)) {
 			handleAnalyze()
 		}
 	}
@@ -69,12 +84,27 @@ export default function Home() {
 						className="h-12 w-full rounded-md border border-input bg-background px-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#80CDC6]"
 						disabled={loading}
 					/>
+					
+					{/* CAPTCHA - only shown if site key is configured */}
+					{TURNSTILE_SITE_KEY && (
+						<div className="flex justify-center">
+							<Turnstile
+								siteKey={TURNSTILE_SITE_KEY}
+								onVerify={(token) => setCaptchaToken(token)}
+								onExpire={() => setCaptchaToken(null)}
+								onError={() => setError("CAPTCHA failed. Please try again.")}
+								theme="auto"
+								size="normal"
+							/>
+						</div>
+					)}
+					
 					{error && (
 						<p className="text-sm text-destructive">{error}</p>
 					)}
 					<button
 						onClick={handleAnalyze}
-						disabled={!url || loading}
+						disabled={!url || loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
 						className="h-12 w-full rounded-md bg-[#80CDC6] font-medium text-white transition-colors hover:bg-[#80CDC6]/90 disabled:pointer-events-none disabled:opacity-50"
 					>
 						{loading ? "Starting..." : "Analyse"}

@@ -40,6 +40,7 @@ export default function RootLayout({
 		<html lang="en" suppressHydrationWarning>
 			<body
 				className={`${archivo.variable} ${inter.variable} ${spaceMono.variable} font-sans antialiased`}
+				suppressHydrationWarning
 			>
 				<ThemeProvider
 					attribute="class"

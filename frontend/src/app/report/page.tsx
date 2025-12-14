@@ -131,6 +131,95 @@ interface SEOReport {
 	}>
 }
 
+// Helper to ensure all arrays have safe defaults
+function normalizeReport(data: Partial<SEOReport>): SEOReport {
+	return {
+		url: data.url || "",
+		timestamp: data.timestamp || new Date().toISOString(),
+		crawl_time_ms: data.crawl_time_ms || 0,
+		scores: {
+			overall: data.scores?.overall ?? 0,
+			technical: data.scores?.technical ?? 0,
+			on_page: data.scores?.on_page ?? 0,
+			content: data.scores?.content ?? 0,
+			structured_data: data.scores?.structured_data ?? 0,
+			ai_readiness: data.scores?.ai_readiness ?? 0,
+		},
+		metadata: {
+			title: data.metadata?.title || { value: null, length: 0, issues: [] },
+			description: data.metadata?.description || { value: null, length: 0, issues: [] },
+			canonical: data.metadata?.canonical || null,
+			robots_meta: data.metadata?.robots_meta || null,
+			viewport: data.metadata?.viewport || null,
+			language: data.metadata?.language || null,
+		},
+		headings: {
+			h1: data.headings?.h1 || { count: 0, values: [], issues: [] },
+			h2: data.headings?.h2 || { count: 0, values: [] },
+			h3: data.headings?.h3 || { count: 0, values: [] },
+			h4: data.headings?.h4 || { count: 0, values: [] },
+			h5: data.headings?.h5 || { count: 0, values: [] },
+			h6: data.headings?.h6 || { count: 0, values: [] },
+			hierarchy_valid: data.headings?.hierarchy_valid ?? true,
+		},
+		images: {
+			total: data.images?.total ?? 0,
+			missing_alt: data.images?.missing_alt ?? 0,
+			missing_alt_urls: data.images?.missing_alt_urls || [],
+			lazy_loading_count: data.images?.lazy_loading_count ?? 0,
+		},
+		links: {
+			internal_count: data.links?.internal_count ?? 0,
+			external_count: data.links?.external_count ?? 0,
+			nofollow_count: data.links?.nofollow_count ?? 0,
+			broken_count: data.links?.broken_count ?? 0,
+		},
+		content: {
+			word_count: data.content?.word_count ?? 0,
+			readability: data.content?.readability || {
+				flesch_reading_ease: 0,
+				flesch_kincaid_grade: 0,
+				gunning_fog: 0,
+				smog_index: 0,
+				automated_readability_index: 0,
+				reading_time_minutes: 0,
+			},
+			keywords_tfidf: data.content?.keywords_tfidf || [],
+			keywords_frequency: data.content?.keywords_frequency || [],
+			top_bigrams: data.content?.top_bigrams || [],
+			top_trigrams: data.content?.top_trigrams || [],
+		},
+		structured_data: {
+			json_ld: data.structured_data?.json_ld || [],
+			microdata: data.structured_data?.microdata ?? false,
+			rdfa: data.structured_data?.rdfa ?? false,
+			open_graph: data.structured_data?.open_graph || {},
+			twitter_card: data.structured_data?.twitter_card || {},
+		},
+		technical: {
+			https: data.technical?.https ?? false,
+			response_time_ms: data.technical?.response_time_ms ?? 0,
+			content_type: data.technical?.content_type || "",
+			server: data.technical?.server || "",
+			content_security_policy: data.technical?.content_security_policy ?? false,
+		},
+		ai_indexing: {
+			robots_txt: data.ai_indexing?.robots_txt || {
+				present: false,
+				ai_bots_status: {},
+				sitemaps_declared: [],
+			},
+			llms_txt: data.ai_indexing?.llms_txt || {
+				present: false,
+				content_preview: null,
+			},
+			sitemap_xml: data.ai_indexing?.sitemap_xml || { present: false },
+		},
+		issues: data.issues || [],
+		recommendations: data.recommendations || [],
+	}
+}
+
 function ReportContent() {
 	const searchParams = useSearchParams()
 	const router = useRouter()
@@ -139,6 +228,7 @@ function ReportContent() {
 	const [error, setError] = useState<string | null>(null)
 
 	const url = searchParams.get("url")
+	const captchaToken = searchParams.get("token")
 
 	useEffect(() => {
 		if (!url) {
@@ -154,7 +244,7 @@ function ReportContent() {
 				const response = await fetch("/api/analyze", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ url }),
+					body: JSON.stringify({ url, captchaToken }),
 				})
 
 				if (!response.ok) {
@@ -162,8 +252,10 @@ function ReportContent() {
 					throw new Error(data.error || "Analysis failed")
 				}
 
-				const data = await response.json()
-				setReport(data)
+				const responseData = await response.json()
+				// Handle both direct data and nested data.data structure (from nginx routing)
+				const reportData = responseData.data || responseData
+				setReport(normalizeReport(reportData))
 			} catch (err) {
 				setError(err instanceof Error ? err.message : "Something went wrong")
 			} finally {

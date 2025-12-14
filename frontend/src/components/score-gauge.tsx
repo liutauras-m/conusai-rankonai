@@ -1,12 +1,5 @@
 "use client"
 
-import {
-	RadialBarChart,
-	RadialBar,
-	ResponsiveContainer,
-	PolarAngleAxis,
-} from "recharts"
-
 interface ScoreGaugeProps {
 	score: number
 	label: string
@@ -29,66 +22,58 @@ function getScoreLabel(score: number): string {
 
 export function ScoreGauge({ score, label, size = "md" }: ScoreGaugeProps) {
 	const color = getScoreColor(score)
-
-	const data = [
-		{
-			name: label,
-			value: score,
-			fill: color,
-		},
-	]
-
-	const sizeClasses = {
-		sm: "h-24 w-24",
-		md: "h-32 w-32",
-		lg: "h-40 w-40",
+	const safeScore = Math.min(100, Math.max(0, typeof score === "number" ? score : 0))
+	
+	// SVG dimensions
+	const sizes = {
+		sm: { width: 96, strokeWidth: 8, fontSize: 18, labelSize: 10 },
+		md: { width: 128, strokeWidth: 10, fontSize: 24, labelSize: 12 },
+		lg: { width: 160, strokeWidth: 12, fontSize: 30, labelSize: 14 },
 	}
-
-	const textSizes = {
-		sm: "text-lg",
-		md: "text-2xl",
-		lg: "text-3xl",
-	}
-
-	const labelSizes = {
-		sm: "text-[10px]",
-		md: "text-xs",
-		lg: "text-sm",
-	}
+	
+	const { width, strokeWidth, fontSize, labelSize } = sizes[size]
+	const radius = (width - strokeWidth) / 2
+	const circumference = 2 * Math.PI * radius
+	const progress = (safeScore / 100) * circumference
+	const offset = circumference - progress
 
 	return (
-		<div className={`relative ${sizeClasses[size]}`}>
-			<ResponsiveContainer width="100%" height="100%">
-				<RadialBarChart
-					cx="50%"
-					cy="50%"
-					innerRadius="70%"
-					outerRadius="100%"
-					barSize={size === "sm" ? 8 : size === "md" ? 10 : 12}
-					data={data}
-					startAngle={90}
-					endAngle={-270}
-				>
-					<PolarAngleAxis
-						type="number"
-						domain={[0, 100]}
-						angleAxisId={0}
-						tick={false}
-					/>
-					<RadialBar
-						background={{ fill: "hsl(var(--muted))" }}
-						dataKey="value"
-						cornerRadius={10}
-						angleAxisId={0}
-					/>
-				</RadialBarChart>
-			</ResponsiveContainer>
+		<div className="relative inline-flex items-center justify-center" style={{ width, height: width }}>
+			<svg
+				width={width}
+				height={width}
+				className="-rotate-90"
+			>
+				{/* Background circle */}
+				<circle
+					cx={width / 2}
+					cy={width / 2}
+					r={radius}
+					fill="none"
+					stroke="hsl(var(--muted))"
+					strokeWidth={strokeWidth}
+				/>
+				{/* Progress circle */}
+				<circle
+					cx={width / 2}
+					cy={width / 2}
+					r={radius}
+					fill="none"
+					stroke={color}
+					strokeWidth={strokeWidth}
+					strokeLinecap="round"
+					strokeDasharray={circumference}
+					strokeDashoffset={offset}
+					className="transition-all duration-500 ease-out"
+				/>
+			</svg>
 			<div className="absolute inset-0 flex flex-col items-center justify-center">
-				<span className={`font-bold ${textSizes[size]}`} style={{ color }}>
-					{score}
+				<span className="font-bold" style={{ color, fontSize }}>
+					{safeScore}
 				</span>
 				<span
-					className={`text-muted-foreground ${labelSizes[size]} max-w-[80%] truncate text-center`}
+					className="text-muted-foreground text-center max-w-[80%] truncate"
+					style={{ fontSize: labelSize }}
 				>
 					{label}
 				</span>
