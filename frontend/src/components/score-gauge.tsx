@@ -120,44 +120,44 @@ interface ScoresOverviewProps {
 
 export function ScoresOverview({ scores }: ScoresOverviewProps) {
 	return (
-		<div className="grid gap-4">
+		<div className="grid gap-6">
+			{/* Hero Score - AI Visibility */}
 			<div className="flex justify-center">
 				<div className="flex flex-col items-center gap-2">
-					<ScoreGauge score={scores.overall} label="Overall Score" size="lg" />
+					<ScoreGauge score={scores.ai_readiness} label="AI Visibility" size="lg" />
 					<p
 						className="text-sm font-medium"
-						style={{ color: getScoreColor(scores.overall) }}
+						style={{ color: getScoreColor(scores.ai_readiness) }}
 					>
-						{getScoreLabel(scores.overall)}
+						{getScoreLabel(scores.ai_readiness)}
+					</p>
+					<p className="text-xs text-muted-foreground text-center max-w-xs">
+						How well AI assistants like ChatGPT can discover and recommend your site
 					</p>
 				</div>
 			</div>
 
-			<div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-				<ScoreCard
-					score={scores.technical}
-					label="Technical"
-					description="HTTPS, headers, speed"
-				/>
-				<ScoreCard
-					score={scores.on_page}
-					label="On-Page"
-					description="Meta tags, headings"
-				/>
+			{/* Secondary Scores */}
+			<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
 				<ScoreCard
 					score={scores.content}
-					label="Content"
-					description="Word count, readability"
+					label="Content Quality"
+					description="Is your content clear for AI to understand?"
 				/>
 				<ScoreCard
 					score={scores.structured_data}
-					label="Schema"
-					description="JSON-LD, Open Graph"
+					label="Rich Data"
+					description="Schema markup AI can extract"
 				/>
 				<ScoreCard
-					score={scores.ai_readiness}
-					label="AI Ready"
-					description="llms.txt, bot access"
+					score={scores.on_page}
+					label="Page Structure"
+					description="Headings and meta information"
+				/>
+				<ScoreCard
+					score={scores.technical}
+					label="Technical Health"
+					description="Speed, security, accessibility"
 				/>
 			</div>
 		</div>

@@ -23,8 +23,8 @@ const spaceMono = Space_Mono({
 })
 
 export const metadata: Metadata = {
-	title: "SEO Analyzer - ConusAI Tools",
-	description: "Analyze web pages for SEO and AI model indexing improvements",
+	title: "Rank on AI Search - Check Your AI Visibility",
+	description: "See if ChatGPT, Perplexity, Claude and other AI assistants can find and recommend your brand. Get your AI visibility score and optimize for AI search.",
 	icons: {
 		icon: "/favicon.png",
 		apple: "/favicon.png",

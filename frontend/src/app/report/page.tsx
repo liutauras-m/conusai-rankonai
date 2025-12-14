@@ -6,6 +6,9 @@ import Image from "next/image"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ScoresOverview } from "@/components/score-gauge"
 import { LoadingOverlay } from "@/components/ui/spinner"
+import { FileGenerator } from "@/components/file-generator"
+import { AIBotStatus } from "@/components/ai-bot-status"
+import { AIRecommendations } from "@/components/ai-recommendations"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
 	Card,
@@ -14,15 +17,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 
 // Types for SEO Report
 interface SEOReport {
@@ -220,6 +214,15 @@ function normalizeReport(data: Partial<SEOReport>): SEOReport {
 	}
 }
 
+// Get readability description
+function getReadabilityDescription(score: number): string {
+	if (score >= 80) return "Very easy to read"
+	if (score >= 60) return "Easy to read"
+	if (score >= 40) return "Moderate difficulty"
+	if (score >= 20) return "Difficult to read"
+	return "Very difficult to read"
+}
+
 function ReportContent() {
 	const searchParams = useSearchParams()
 	const router = useRouter()
@@ -253,7 +256,6 @@ function ReportContent() {
 				}
 
 				const responseData = await response.json()
-				// Handle both direct data and nested data.data structure (from nginx routing)
 				const reportData = responseData.data || responseData
 				setReport(normalizeReport(reportData))
 			} catch (err) {
@@ -264,10 +266,10 @@ function ReportContent() {
 		}
 
 		fetchReport()
-	}, [url, router])
+	}, [url, captchaToken, router])
 
 	if (loading) {
-		return <LoadingOverlay message={`Analysing ${url}...`} />
+		return <LoadingOverlay message={`Checking AI visibility for ${url}...`} />
 	}
 
 	if (error) {
@@ -281,7 +283,7 @@ function ReportContent() {
 				</div>
 				<button
 					onClick={() => router.push("/")}
-					className="mt-4 rounded-md bg-[#80CDC6] px-6 py-2 font-medium text-white hover:bg-[#80CDC6]/90"
+					className="mt-4 rounded-md bg-primary px-6 py-2 font-medium text-primary-foreground hover:bg-primary/90"
 				>
 					Try Again
 				</button>
@@ -290,6 +292,9 @@ function ReportContent() {
 	}
 
 	if (!report) return null
+
+	// Extract domain for display
+	const domain = new URL(report.url).hostname
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -325,18 +330,18 @@ function ReportContent() {
 			</header>
 
 			<main className="container mx-auto px-4 py-8">
-				{/* URL & Summary */}
-				<div className="mb-8">
-					<h1 className="text-xl font-semibold text-foreground sm:text-2xl">
-						SEO Report
+				{/* Hero Section */}
+				<div className="mb-8 text-center">
+					<h1 className="font-display text-2xl font-semibold text-foreground sm:text-3xl">
+						AI Visibility Report
 					</h1>
 					<a
 						href={report.url}
 						target="_blank"
 						rel="noopener noreferrer"
-						className="mt-1 inline-flex items-center gap-1 text-sm text-[#80CDC6] hover:underline"
+						className="mt-2 inline-flex items-center gap-1 text-sm text-primary hover:underline"
 					>
-						{report.url}
+						{domain}
 						<svg
 							className="h-3 w-3"
 							fill="none"
@@ -353,12 +358,12 @@ function ReportContent() {
 					</a>
 				</div>
 
-				{/* Scores Overview */}
+				{/* AI Visibility Score - Hero */}
 				<Card className="mb-8">
-					<CardHeader>
-						<CardTitle>Scores Overview</CardTitle>
+					<CardHeader className="text-center">
+						<CardTitle>Your AI Visibility Score</CardTitle>
 						<CardDescription>
-							Analysis completed in {report.crawl_time_ms}ms
+							How well can AI assistants discover and recommend your brand?
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -366,575 +371,447 @@ function ReportContent() {
 					</CardContent>
 				</Card>
 
-				{/* Tabbed Content */}
-				<Tabs defaultValue="issues" className="w-full">
-					<TabsList className="mb-4 flex-wrap">
-						<TabsTrigger value="issues">
-							Issues ({report.issues.length})
+				{/* Tabbed Content - Reordered for business users */}
+				<Tabs defaultValue="visibility" className="w-full">
+					<TabsList className="mb-4 flex-wrap justify-start">
+						<TabsTrigger value="visibility" className="gap-1">
+							<span className="hidden sm:inline">🤖</span> AI Crawlers
 						</TabsTrigger>
-						<TabsTrigger value="metadata">Metadata</TabsTrigger>
-						<TabsTrigger value="content">Content</TabsTrigger>
-						<TabsTrigger value="technical">Technical</TabsTrigger>
-						<TabsTrigger value="ai">AI Indexing</TabsTrigger>
-						<TabsTrigger value="structured">Structured Data</TabsTrigger>
+						<TabsTrigger value="files" className="gap-1">
+							<span className="hidden sm:inline">📄</span> Get Files
+						</TabsTrigger>
+						<TabsTrigger value="recommendations" className="gap-1">
+							<span className="hidden sm:inline">💡</span> Actions
+						</TabsTrigger>
+						<TabsTrigger value="content" className="gap-1">
+							<span className="hidden sm:inline">📝</span> Content
+						</TabsTrigger>
+						<TabsTrigger value="details" className="gap-1">
+							<span className="hidden sm:inline">⚙️</span> Details
+						</TabsTrigger>
 					</TabsList>
 
-					{/* Issues Tab */}
-					<TabsContent value="issues">
-						<Card>
-							<CardHeader>
-								<CardTitle>Issues & Recommendations</CardTitle>
-								<CardDescription>
-									{report.issues.filter((i) => i.severity === "high").length}{" "}
-									high,{" "}
-									{report.issues.filter((i) => i.severity === "medium").length}{" "}
-									medium,{" "}
-									{report.issues.filter((i) => i.severity === "low").length} low
-									priority issues
-								</CardDescription>
-							</CardHeader>
-							<CardContent>
-								{report.issues.length === 0 ? (
-									<p className="text-center text-muted-foreground">
-										No issues found! 🎉
-									</p>
-								) : (
-									<div className="space-y-3">
-										{report.issues.map((issue, idx) => (
-											<div
-												key={idx}
-												className="flex items-start gap-3 rounded-lg border p-3"
-											>
-												<Badge
-													variant={
-														issue.severity === "high"
-															? "destructive"
-															: issue.severity === "medium"
-																? "default"
-																: "secondary"
-													}
-													className="mt-0.5 shrink-0"
-												>
-													{issue.severity}
-												</Badge>
-												<div className="min-w-0 flex-1">
-													<p className="font-medium">{issue.message}</p>
-													<p className="mt-1 text-sm text-muted-foreground">
-														{issue.category} • {issue.code}
-													</p>
-													{issue.element && (
-														<code className="mt-2 block truncate rounded bg-muted px-2 py-1 text-xs">
-															{issue.element}
-														</code>
-													)}
-												</div>
-											</div>
-										))}
-									</div>
-								)}
-
-								{report.recommendations.length > 0 && (
-									<div className="mt-6">
-										<h4 className="mb-3 font-semibold">Recommendations</h4>
-										<div className="space-y-2">
-											{report.recommendations.map((rec, idx) => (
-												<div key={idx} className="flex items-start gap-3">
-													<Badge variant="outline" className="shrink-0">
-														P{rec.priority}
-													</Badge>
-													<p className="text-sm">{rec.action}</p>
-												</div>
-											))}
-										</div>
-									</div>
-								)}
-							</CardContent>
-						</Card>
+					{/* AI Visibility Tab */}
+					<TabsContent value="visibility">
+						<AIBotStatus botStatus={report.ai_indexing.robots_txt.ai_bots_status} />
 					</TabsContent>
 
-					{/* Metadata Tab */}
-					<TabsContent value="metadata">
-						<div className="grid gap-4 md:grid-cols-2">
-							<Card>
-								<CardHeader>
-									<CardTitle>Title Tag</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<p className="text-sm">
-										{report.metadata.title.value || (
-											<span className="text-destructive">Missing</span>
-										)}
-									</p>
-									<p className="mt-2 text-xs text-muted-foreground">
-										Length: {report.metadata.title.length} characters
-										(recommended: 50-60)
-									</p>
-								</CardContent>
-							</Card>
+					{/* Get Files Tab */}
+					<TabsContent value="files">
+						<FileGenerator
+							url={report.url}
+							aiIndexing={report.ai_indexing}
+							metadata={report.metadata}
+							content={report.content}
+						/>
+					</TabsContent>
 
-							<Card>
-								<CardHeader>
-									<CardTitle>Meta Description</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<p className="text-sm">
-										{report.metadata.description.value || (
-											<span className="text-destructive">Missing</span>
-										)}
-									</p>
-									<p className="mt-2 text-xs text-muted-foreground">
-										Length: {report.metadata.description.length} characters
-										(recommended: 150-160)
-									</p>
-								</CardContent>
-							</Card>
-
-							<Card>
-								<CardHeader>
-									<CardTitle>Headings</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<Table>
-										<TableHeader>
-											<TableRow>
-												<TableHead>Tag</TableHead>
-												<TableHead>Count</TableHead>
-												<TableHead>Status</TableHead>
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{(
-												["h1", "h2", "h3", "h4", "h5", "h6"] as const
-											).map((tag) => (
-												<TableRow key={tag}>
-													<TableCell className="font-mono">{tag}</TableCell>
-													<TableCell>
-														{report.headings[tag].count}
-													</TableCell>
-													<TableCell>
-														{tag === "h1" &&
-														report.headings.h1.count !== 1 ? (
-															<Badge variant="destructive">
-																{report.headings.h1.count === 0
-																	? "Missing"
-																	: "Multiple"}
-															</Badge>
-														) : (
-															<Badge variant="secondary">OK</Badge>
-														)}
-													</TableCell>
-												</TableRow>
-											))}
-										</TableBody>
-									</Table>
-									{report.headings.h1.values.length > 0 && (
-										<div className="mt-3">
-											<p className="text-xs text-muted-foreground">
-												H1: {report.headings.h1.values[0]}
-											</p>
-										</div>
-									)}
-								</CardContent>
-							</Card>
-
-							<Card>
-								<CardHeader>
-									<CardTitle>Other Meta</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<div className="space-y-2 text-sm">
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">Canonical</span>
-											<span className="max-w-[200px] truncate">
-												{report.metadata.canonical || "Not set"}
-											</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">Language</span>
-											<span>{report.metadata.language || "Not set"}</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">Viewport</span>
-											<span>
-												{report.metadata.viewport ? "Set" : "Missing"}
-											</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">Robots</span>
-											<span>{report.metadata.robots_meta || "Not set"}</span>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-						</div>
+					{/* Recommendations Tab */}
+					<TabsContent value="recommendations">
+						<AIRecommendations
+							issues={report.issues}
+							recommendations={report.recommendations}
+							scores={report.scores}
+							aiIndexing={report.ai_indexing}
+						/>
 					</TabsContent>
 
 					{/* Content Tab */}
 					<TabsContent value="content">
-						<div className="grid gap-4 md:grid-cols-2">
+						<div className="space-y-6">
+							{/* Content Overview */}
 							<Card>
 								<CardHeader>
-									<CardTitle>Content Stats</CardTitle>
+									<CardTitle className="flex items-center gap-2">
+										<span>📝</span> Content Quality
+									</CardTitle>
+									<CardDescription>
+										How well AI can understand your content
+									</CardDescription>
 								</CardHeader>
 								<CardContent>
-									<div className="space-y-3">
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">Word Count</span>
-											<span className="font-medium">
-												{report.content.word_count}
-											</span>
+									<div className="grid gap-6 md:grid-cols-2">
+										{/* Quick Stats */}
+										<div className="space-y-4">
+											<div className="rounded-lg bg-muted/50 p-4">
+												<div className="text-3xl font-bold text-foreground">
+													{report.content.word_count.toLocaleString()}
+												</div>
+												<div className="text-sm text-muted-foreground">
+													words on page
+												</div>
+											</div>
+											<div className="rounded-lg bg-muted/50 p-4">
+												<div className="text-3xl font-bold text-foreground">
+													{report.content.readability.reading_time_minutes} min
+												</div>
+												<div className="text-sm text-muted-foreground">
+													reading time
+												</div>
+											</div>
+											<div className="rounded-lg bg-muted/50 p-4">
+												<div className="text-2xl font-bold text-foreground">
+													{getReadabilityDescription(
+														report.content.readability.flesch_reading_ease
+													)}
+												</div>
+												<div className="text-sm text-muted-foreground">
+													readability level (Flesch:{" "}
+													{report.content.readability.flesch_reading_ease})
+												</div>
+											</div>
 										</div>
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">
-												Reading Time
-											</span>
-											<span className="font-medium">
-												{report.content.readability.reading_time_minutes} min
-											</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">
-												Flesch Reading Ease
-											</span>
-											<span className="font-medium">
-												{report.content.readability.flesch_reading_ease}
-											</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">
-												Reading Grade
-											</span>
-											<span className="font-medium">
-												{report.content.readability.flesch_kincaid_grade}
-											</span>
+
+										{/* Top Keywords */}
+										<div>
+											<h4 className="mb-3 font-medium text-foreground">
+												Top Keywords AI Will Associate With You
+											</h4>
+											{report.content.keywords_frequency.length > 0 ? (
+												<div className="flex flex-wrap gap-2">
+													{report.content.keywords_frequency
+														.slice(0, 15)
+														.map((kw, idx) => (
+															<span
+																key={idx}
+																className="rounded-full bg-primary/10 px-3 py-1 text-sm text-primary"
+															>
+																{kw.keyword}
+															</span>
+														))}
+												</div>
+											) : (
+												<p className="text-sm text-muted-foreground">
+													No significant keywords found
+												</p>
+											)}
+
+											{report.content.top_bigrams.length > 0 && (
+												<>
+													<h4 className="mb-3 mt-6 font-medium text-foreground">
+														Key Phrases
+													</h4>
+													<div className="flex flex-wrap gap-2">
+														{report.content.top_bigrams.slice(0, 8).map((p, idx) => (
+															<span
+																key={idx}
+																className="rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground"
+															>
+																{p.phrase}
+															</span>
+														))}
+													</div>
+												</>
+											)}
 										</div>
 									</div>
 								</CardContent>
 							</Card>
 
+							{/* Page Structure */}
 							<Card>
 								<CardHeader>
-									<CardTitle>Images & Links</CardTitle>
+									<CardTitle className="flex items-center gap-2">
+										<span>🏗️</span> Page Structure
+									</CardTitle>
+									<CardDescription>
+										How your content is organized for AI understanding
+									</CardDescription>
 								</CardHeader>
 								<CardContent>
-									<div className="space-y-3">
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">
-												Total Images
-											</span>
-											<span className="font-medium">
-												{report.images.total}
-											</span>
+									<div className="grid gap-4 md:grid-cols-2">
+										{/* Meta Info */}
+										<div className="space-y-3">
+											<div className="rounded-lg border p-3">
+												<p className="text-xs font-medium uppercase text-muted-foreground">
+													Page Title
+												</p>
+												<p className="mt-1 font-medium text-foreground">
+													{report.metadata.title.value || "⚠️ Missing"}
+												</p>
+												{report.metadata.title.length > 0 && (
+													<p className="mt-1 text-xs text-muted-foreground">
+														{report.metadata.title.length} characters
+														{report.metadata.title.length > 60
+															? " (may be truncated)"
+															: ""}
+													</p>
+												)}
+											</div>
+											<div className="rounded-lg border p-3">
+												<p className="text-xs font-medium uppercase text-muted-foreground">
+													Meta Description
+												</p>
+												<p className="mt-1 text-sm text-foreground">
+													{report.metadata.description.value ||
+														"⚠️ Missing - AI won't have a summary"}
+												</p>
+												{report.metadata.description.length > 0 && (
+													<p className="mt-1 text-xs text-muted-foreground">
+														{report.metadata.description.length} characters
+													</p>
+												)}
+											</div>
 										</div>
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">Missing Alt</span>
+
+										{/* Headings */}
+										<div className="space-y-3">
+											<h4 className="font-medium text-foreground">Headings</h4>
+											<div className="space-y-2">
+												<div className="flex items-center justify-between rounded border p-2">
+													<span className="text-sm">H1 (Main Topic)</span>
+													<span
+														className={`font-medium ${
+															report.headings.h1.count === 1
+																? "text-green-600 dark:text-green-400"
+																: report.headings.h1.count === 0
+																	? "text-red-600 dark:text-red-400"
+																	: "text-amber-600 dark:text-amber-400"
+														}`}
+													>
+														{report.headings.h1.count === 1
+															? "✓"
+															: report.headings.h1.count === 0
+																? "Missing"
+																: `${report.headings.h1.count} found`}
+													</span>
+												</div>
+												<div className="flex items-center justify-between rounded border p-2">
+													<span className="text-sm">H2 (Sections)</span>
+													<span className="font-medium text-foreground">
+														{report.headings.h2.count}
+													</span>
+												</div>
+												<div className="flex items-center justify-between rounded border p-2">
+													<span className="text-sm">H3-H6 (Subsections)</span>
+													<span className="font-medium text-foreground">
+														{report.headings.h3.count +
+															report.headings.h4.count +
+															report.headings.h5.count +
+															report.headings.h6.count}
+													</span>
+												</div>
+											</div>
+											{report.headings.h1.values.length > 0 && (
+												<div className="rounded-lg bg-muted/50 p-3">
+													<p className="text-xs text-muted-foreground">
+														Main heading:
+													</p>
+													<p className="mt-1 font-medium text-foreground">
+														{report.headings.h1.values[0]}
+													</p>
+												</div>
+											)}
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+						</div>
+					</TabsContent>
+
+					{/* Technical Details Tab */}
+					<TabsContent value="details">
+						<div className="space-y-6">
+							{/* Technical Health */}
+							<Card>
+								<CardHeader>
+									<CardTitle className="flex items-center gap-2">
+										<span>⚙️</span> Technical Health
+									</CardTitle>
+									<CardDescription>
+										Infrastructure that affects AI crawling
+									</CardDescription>
+								</CardHeader>
+								<CardContent>
+									<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+										<div className="flex items-center justify-between rounded-lg border p-3">
+											<span className="text-sm text-foreground">HTTPS Secure</span>
 											<span
 												className={
-													report.images.missing_alt > 0
-														? "font-medium text-destructive"
-														: "font-medium"
+													report.technical.https
+														? "text-green-600 dark:text-green-400"
+														: "text-red-600 dark:text-red-400"
 												}
 											>
-												{report.images.missing_alt}
+												{report.technical.https ? "✓ Yes" : "✗ No"}
 											</span>
 										</div>
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">
-												Internal Links
-											</span>
-											<span className="font-medium">
-												{report.links.internal_count}
-											</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-muted-foreground">
-												External Links
-											</span>
-											<span className="font-medium">
-												{report.links.external_count}
-											</span>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-
-							<Card className="md:col-span-2">
-								<CardHeader>
-									<CardTitle>Top Keywords</CardTitle>
-									<CardDescription>
-										Based on frequency analysis
-									</CardDescription>
-								</CardHeader>
-								<CardContent>
-									<div className="flex flex-wrap gap-2">
-										{report.content.keywords_frequency
-											.slice(0, 15)
-											.map((kw, idx) => (
-												<Badge
-													key={idx}
-													variant="outline"
-													className="text-sm"
-												>
-													{kw.keyword}{" "}
-													<span className="ml-1 text-muted-foreground">
-														({kw.count})
-													</span>
-												</Badge>
-											))}
-									</div>
-									{report.content.top_bigrams.length > 0 && (
-										<div className="mt-4">
-											<h4 className="mb-2 text-sm font-medium">
-												Top Phrases
-											</h4>
-											<div className="flex flex-wrap gap-2">
-												{report.content.top_bigrams.slice(0, 8).map((bg, idx) => (
-													<Badge key={idx} variant="secondary" className="text-sm">
-														{bg.phrase}{" "}
-														<span className="ml-1 text-muted-foreground">
-															({bg.count})
-														</span>
-													</Badge>
-												))}
-											</div>
-										</div>
-									)}
-								</CardContent>
-							</Card>
-						</div>
-					</TabsContent>
-
-					{/* Technical Tab */}
-					<TabsContent value="technical">
-						<Card>
-							<CardHeader>
-								<CardTitle>Technical Details</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<Table>
-									<TableBody>
-										<TableRow>
-											<TableCell className="font-medium">HTTPS</TableCell>
-											<TableCell>
-												{report.technical.https ? (
-													<Badge variant="secondary">Yes</Badge>
-												) : (
-													<Badge variant="destructive">No</Badge>
-												)}
-											</TableCell>
-										</TableRow>
-										<TableRow>
-											<TableCell className="font-medium">
-												Response Time
-											</TableCell>
-											<TableCell>{report.technical.response_time_ms}ms</TableCell>
-										</TableRow>
-										<TableRow>
-											<TableCell className="font-medium">Content Type</TableCell>
-											<TableCell className="font-mono text-sm">
-												{report.technical.content_type}
-											</TableCell>
-										</TableRow>
-										<TableRow>
-											<TableCell className="font-medium">Server</TableCell>
-											<TableCell>
-												{report.technical.server || "Not disclosed"}
-											</TableCell>
-										</TableRow>
-										<TableRow>
-											<TableCell className="font-medium">CSP Header</TableCell>
-											<TableCell>
-												{report.technical.content_security_policy ? (
-													<Badge variant="secondary">Present</Badge>
-												) : (
-													<Badge variant="outline">Missing</Badge>
-												)}
-											</TableCell>
-										</TableRow>
-									</TableBody>
-								</Table>
-							</CardContent>
-						</Card>
-					</TabsContent>
-
-					{/* AI Indexing Tab */}
-					<TabsContent value="ai">
-						<div className="grid gap-4 md:grid-cols-2">
-							<Card>
-								<CardHeader>
-									<CardTitle>AI Readiness Files</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<div className="space-y-3">
-										<div className="flex items-center justify-between">
-											<span>robots.txt</span>
-											{report.ai_indexing.robots_txt.present ? (
-												<Badge variant="secondary">Found</Badge>
-											) : (
-												<Badge variant="destructive">Missing</Badge>
-											)}
-										</div>
-										<div className="flex items-center justify-between">
-											<span>llms.txt</span>
-											{report.ai_indexing.llms_txt.present ? (
-												<Badge variant="secondary">Found</Badge>
-											) : (
-												<Badge variant="outline">Missing</Badge>
-											)}
-										</div>
-										<div className="flex items-center justify-between">
-											<span>sitemap.xml</span>
-											{report.ai_indexing.sitemap_xml.present ? (
-												<Badge variant="secondary">Found</Badge>
-											) : (
-												<Badge variant="destructive">Missing</Badge>
-											)}
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-
-							<Card>
-								<CardHeader>
-									<CardTitle>AI Bot Access</CardTitle>
-									<CardDescription>
-										Status from robots.txt
-									</CardDescription>
-								</CardHeader>
-								<CardContent>
-									<div className="max-h-[300px] space-y-2 overflow-y-auto">
-										{Object.entries(
-											report.ai_indexing.robots_txt.ai_bots_status
-										).map(([bot, status]) => (
-											<div
-												key={bot}
-												className="flex items-center justify-between text-sm"
+										<div className="flex items-center justify-between rounded-lg border p-3">
+											<span className="text-sm text-foreground">Response Time</span>
+											<span
+												className={`font-medium ${
+													report.technical.response_time_ms < 500
+														? "text-green-600 dark:text-green-400"
+														: report.technical.response_time_ms < 1000
+															? "text-amber-600 dark:text-amber-400"
+															: "text-red-600 dark:text-red-400"
+												}`}
 											>
-												<span className="font-mono">{bot}</span>
-												<Badge
-													variant={
-														status.includes("blocked")
-															? "destructive"
-															: status.includes("allowed")
-																? "secondary"
-																: "outline"
-													}
-													className="text-xs"
-												>
-													{status}
-												</Badge>
+												{report.technical.response_time_ms}ms
+											</span>
+										</div>
+										<div className="flex items-center justify-between rounded-lg border p-3">
+											<span className="text-sm text-foreground">robots.txt</span>
+											<span
+												className={
+													report.ai_indexing.robots_txt.present
+														? "text-green-600 dark:text-green-400"
+														: "text-amber-600 dark:text-amber-400"
+												}
+											>
+												{report.ai_indexing.robots_txt.present ? "✓ Found" : "Not found"}
+											</span>
+										</div>
+										<div className="flex items-center justify-between rounded-lg border p-3">
+											<span className="text-sm text-foreground">llms.txt</span>
+											<span
+												className={
+													report.ai_indexing.llms_txt.present
+														? "text-green-600 dark:text-green-400"
+														: "text-amber-600 dark:text-amber-400"
+												}
+											>
+												{report.ai_indexing.llms_txt.present ? "✓ Found" : "Not found"}
+											</span>
+										</div>
+										<div className="flex items-center justify-between rounded-lg border p-3">
+											<span className="text-sm text-foreground">Sitemap</span>
+											<span
+												className={
+													report.ai_indexing.sitemap_xml.present
+														? "text-green-600 dark:text-green-400"
+														: "text-amber-600 dark:text-amber-400"
+												}
+											>
+												{report.ai_indexing.sitemap_xml.present
+													? "✓ Found"
+													: "Not found"}
+											</span>
+										</div>
+										<div className="flex items-center justify-between rounded-lg border p-3">
+											<span className="text-sm text-foreground">Language</span>
+											<span className="font-medium text-foreground">
+												{report.metadata.language || "Not set"}
+											</span>
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+
+							{/* Structured Data */}
+							<Card>
+								<CardHeader>
+									<CardTitle className="flex items-center gap-2">
+										<span>🏷️</span> Rich Data (Schema Markup)
+									</CardTitle>
+									<CardDescription>
+										Structured information AI can extract about your business
+									</CardDescription>
+								</CardHeader>
+								<CardContent>
+									<div className="grid gap-4 md:grid-cols-2">
+										{/* JSON-LD */}
+										<div>
+											<h4 className="mb-2 font-medium text-foreground">
+												JSON-LD Schema
+											</h4>
+											{report.structured_data.json_ld.length > 0 ? (
+												<div className="space-y-2">
+													{report.structured_data.json_ld.map((schema, idx) => (
+														<div
+															key={idx}
+															className="flex items-center gap-2 rounded border p-2"
+														>
+															<span className="text-green-600 dark:text-green-400">
+																✓
+															</span>
+															<span className="text-sm">{schema.type}</span>
+														</div>
+													))}
+												</div>
+											) : (
+												<p className="rounded-lg bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
+													⚠️ No JSON-LD schema found. Adding schema helps AI
+													understand your business type.
+												</p>
+											)}
+										</div>
+
+										{/* Open Graph */}
+										<div>
+											<h4 className="mb-2 font-medium text-foreground">
+												Social/Open Graph
+											</h4>
+											{Object.keys(report.structured_data.open_graph).length > 0 ? (
+												<div className="space-y-2">
+													{Object.entries(report.structured_data.open_graph)
+														.slice(0, 6)
+														.map(([key, value]) => (
+															<div key={key} className="rounded border p-2">
+																<p className="text-xs text-muted-foreground">
+																	{key}
+																</p>
+																<p className="truncate text-sm text-foreground">
+																	{value}
+																</p>
+															</div>
+														))}
+												</div>
+											) : (
+												<p className="rounded-lg bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
+													⚠️ No Open Graph tags. These help when your content is
+													shared.
+												</p>
+											)}
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+
+							{/* Links & Images */}
+							<Card>
+								<CardHeader>
+									<CardTitle className="flex items-center gap-2">
+										<span>🔗</span> Links & Images
+									</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+										<div className="rounded-lg bg-muted/50 p-4 text-center">
+											<div className="text-2xl font-bold text-foreground">
+												{report.links.internal_count}
 											</div>
-										))}
-									</div>
-								</CardContent>
-							</Card>
-
-							{report.ai_indexing.llms_txt.content_preview && (
-								<Card className="md:col-span-2">
-									<CardHeader>
-										<CardTitle>llms.txt Preview</CardTitle>
-									</CardHeader>
-									<CardContent>
-										<pre className="max-h-[200px] overflow-auto rounded bg-muted p-3 text-xs">
-											{report.ai_indexing.llms_txt.content_preview}
-										</pre>
-									</CardContent>
-								</Card>
-							)}
-						</div>
-					</TabsContent>
-
-					{/* Structured Data Tab */}
-					<TabsContent value="structured">
-						<div className="grid gap-4 md:grid-cols-2">
-							<Card>
-								<CardHeader>
-									<CardTitle>Schema.org (JSON-LD)</CardTitle>
-								</CardHeader>
-								<CardContent>
-									{report.structured_data.json_ld.length > 0 ? (
-										<div className="space-y-2">
-											{report.structured_data.json_ld.map((schema, idx) => (
-												<Badge key={idx} variant="secondary">
-													{schema.type || "Unknown"}
-												</Badge>
-											))}
+											<div className="text-sm text-muted-foreground">
+												Internal Links
+											</div>
 										</div>
-									) : (
-										<p className="text-sm text-muted-foreground">
-											No JSON-LD schemas found
-										</p>
-									)}
-									<div className="mt-4 space-y-2">
-										<div className="flex items-center justify-between text-sm">
-											<span>Microdata</span>
-											{report.structured_data.microdata ? (
-												<Badge variant="secondary">Found</Badge>
-											) : (
-												<Badge variant="outline">Not found</Badge>
-											)}
+										<div className="rounded-lg bg-muted/50 p-4 text-center">
+											<div className="text-2xl font-bold text-foreground">
+												{report.links.external_count}
+											</div>
+											<div className="text-sm text-muted-foreground">
+												External Links
+											</div>
 										</div>
-										<div className="flex items-center justify-between text-sm">
-											<span>RDFa</span>
-											{report.structured_data.rdfa ? (
-												<Badge variant="secondary">Found</Badge>
-											) : (
-												<Badge variant="outline">Not found</Badge>
-											)}
+										<div className="rounded-lg bg-muted/50 p-4 text-center">
+											<div className="text-2xl font-bold text-foreground">
+												{report.images.total}
+											</div>
+											<div className="text-sm text-muted-foreground">Images</div>
 										</div>
-									</div>
-								</CardContent>
-							</Card>
-
-							<Card>
-								<CardHeader>
-									<CardTitle>Social Meta Tags</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<div className="space-y-4">
-										<div>
-											<h4 className="mb-2 text-sm font-medium">Open Graph</h4>
-											{Object.keys(report.structured_data.open_graph).length >
-											0 ? (
-												<div className="space-y-1 text-sm">
-													{Object.entries(
-														report.structured_data.open_graph
-													).map(([key, value]) => (
-														<div key={key} className="flex gap-2">
-															<span className="font-mono text-muted-foreground">
-																{key}:
-															</span>
-															<span className="truncate">{value}</span>
-														</div>
-													))}
-												</div>
-											) : (
-												<p className="text-sm text-muted-foreground">
-													No Open Graph tags found
-												</p>
-											)}
-										</div>
-										<div>
-											<h4 className="mb-2 text-sm font-medium">Twitter Card</h4>
-											{Object.keys(report.structured_data.twitter_card).length >
-											0 ? (
-												<div className="space-y-1 text-sm">
-													{Object.entries(
-														report.structured_data.twitter_card
-													).map(([key, value]) => (
-														<div key={key} className="flex gap-2">
-															<span className="font-mono text-muted-foreground">
-																{key}:
-															</span>
-															<span className="truncate">{value}</span>
-														</div>
-													))}
-												</div>
-											) : (
-												<p className="text-sm text-muted-foreground">
-													No Twitter Card tags found
-												</p>
-											)}
+										<div className="rounded-lg bg-muted/50 p-4 text-center">
+											<div
+												className={`text-2xl font-bold ${
+													report.images.missing_alt > 0
+														? "text-amber-600 dark:text-amber-400"
+														: "text-green-600 dark:text-green-400"
+												}`}
+											>
+												{report.images.missing_alt}
+											</div>
+											<div className="text-sm text-muted-foreground">
+												Missing Alt Text
+											</div>
 										</div>
 									</div>
 								</CardContent>
@@ -945,29 +822,32 @@ function ReportContent() {
 			</main>
 
 			{/* Footer */}
-			<footer className="border-t py-6">
-				<div className="container mx-auto flex items-center justify-center gap-2 px-4 text-xs text-muted-foreground">
-					<span>Powered by</span>
-					<a
-						href="https://www.conusai.com"
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						<Image
-							src="/logos/conusai_logo_darkmode.png"
-							alt="ConusAI"
-							width={80}
-							height={20}
-							className="hidden dark:block"
-						/>
-						<Image
-							src="/logos/conusai_logo_lightmode.png"
-							alt="ConusAI"
-							width={80}
-							height={20}
-							className="block dark:hidden"
-						/>
-					</a>
+			<footer className="border-t bg-muted/30 py-6">
+				<div className="container mx-auto px-4 text-center">
+					<p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+						Powered by{" "}
+						<a
+							href="https://www.conusai.com"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="inline-block"
+						>
+							<Image
+								src="/logos/conusai_logo_darkmode.png"
+								alt="ConusAI"
+								width={80}
+								height={20}
+								className="hidden dark:block"
+							/>
+							<Image
+								src="/logos/conusai_logo_lightmode.png"
+								alt="ConusAI"
+								width={80}
+								height={20}
+								className="block dark:hidden"
+							/>
+						</a>
+					</p>
 				</div>
 			</footer>
 		</div>
