@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Archivo, Inter, Space_Mono } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { PostHogProvider } from "@/components/posthog-provider"
 
 const archivo = Archivo({
 	subsets: ["latin"],
@@ -42,14 +43,16 @@ export default function RootLayout({
 				className={`${archivo.variable} ${inter.variable} ${spaceMono.variable} font-sans antialiased`}
 				suppressHydrationWarning
 			>
-				<ThemeProvider
-					attribute="class"
-					defaultTheme="dark"
-					enableSystem
-					disableTransitionOnChange
-				>
-					{children}
-				</ThemeProvider>
+				<PostHogProvider>
+					<ThemeProvider
+						attribute="class"
+						defaultTheme="dark"
+						enableSystem
+						disableTransitionOnChange
+					>
+						{children}
+					</ThemeProvider>
+				</PostHogProvider>
 			</body>
 		</html>
 	)
