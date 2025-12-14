@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO Analysis Report - ConusAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--gray-800);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .site-info h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .site-info .url {
+            color: var(--primary);
+            font-size: 1rem;
+            text-decoration: none;
+        }
+
+        .site-info .url:hover {
+            text-decoration: underline;
+        }
+
+        .meta-info {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--gray-500);
+        }
+
+        .meta-item svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Score Circle */
+        .overall-score {
+            text-align: center;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(var(--success) calc(var(--score) * 3.6deg), var(--gray-200) 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .score-circle::before {
+            content: '';
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        .score-value {
+            position: relative;
+            z-index: 1;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .score-label {
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--gray-500);
+            font-weight: 500;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-title svg {
+            width: 20px;
+            height: 20px;
+            color: var(--primary);
+        }
+
+        /* Score Bars */
+        .score-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .score-bar-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .score-bar-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+        }
+
+        .score-bar-label {
+            color: var(--gray-600);
+        }
+
+        .score-bar-value {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .score-bar {
+            height: 8px;
+            background: var(--gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .score-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .score-bar-fill.excellent { background: var(--success); }
+        .score-bar-fill.good { background: #22c55e; }
+        .score-bar-fill.warning { background: var(--warning); }
+        .score-bar-fill.danger { background: var(--danger); }
+
+        /* Issues List */
+        .issues-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .issue-item {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--gray-50);
+            border-radius: 8px;
+            align-items: flex-start;
+        }
+
+        .issue-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.625rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        .issue-badge.high {
+            background: #fef2f2;
+            color: var(--danger);
+        }
+
+        .issue-badge.medium {
+            background: #fffbeb;
+            color: var(--warning);
+        }
+
+        .issue-badge.low {
+            background: #f0fdf4;
+            color: var(--success);
+        }
+
+        .issue-content {
+            flex: 1;
+        }
+
+        .issue-message {
+            font-size: 0.875rem;
+            color: var(--gray-700);
+        }
+
+        .issue-code {
+            font-size: 0.75rem;
+            color: var(--gray-400);
+            margin-top: 0.25rem;
+        }
+
+        /* Keywords */
+        .keywords-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .keyword-tag {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .keyword-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.125rem 0.375rem;
+            border-radius: 10px;
+            font-size: 0.625rem;
+        }
+
+        /* AI Bots Grid */
+        .bots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .bot-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--gray-50);
+            border-radius: 8px;
+            font-size: 0.75rem;
+        }
+
+        .bot-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .bot-status.allowed { background: var(--success); }
+        .bot-status.blocked { background: var(--danger); }
+        .bot-status.default { background: var(--warning); }
+
+        .bot-name {
+            color: var(--gray-700);
+            font-weight: 500;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .metric-item {
+            text-align: center;
+            padding: 1rem;
+            background: var(--gray-50);
+            border-radius: 12px;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-top: 0.25rem;
+        }
+
+        /* Readability */
+        .readability-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .readability-item {
+            padding: 0.75rem;
+            background: var(--gray-50);
+            border-radius: 8px;
+        }
+
+        .readability-score {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .readability-label {
+            font-size: 0.625rem;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Headings Tree */
+        .headings-tree {
+            font-size: 0.875rem;
+        }
+
+        .heading-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .heading-tag {
+            background: var(--primary);
+            color: white;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.625rem;
+            font-weight: 600;
+            min-width: 28px;
+            text-align: center;
+        }
+
+        .heading-text {
+            color: var(--gray-600);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .heading-count {
+            color: var(--gray-400);
+            font-size: 0.75rem;
+        }
+
+        /* OG Preview */
+        .og-preview {
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .og-image {
+            width: 100%;
+            height: 150px;
+            background: var(--gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .og-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .og-content {
+            padding: 1rem;
+        }
+
+        .og-site {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-bottom: 0.25rem;
+        }
+
+        .og-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .og-description {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Recommendations */
+        .recommendation-item {
+            display: flex;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        .recommendation-priority {
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .recommendation-text {
+            font-size: 0.875rem;
+            color: var(--gray-700);
+        }
+
+        .recommendation-category {
+            font-size: 0.625rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
+        }
+
+        /* Technical Badges */
+        .tech-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tech-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--gray-100);
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: var(--gray-700);
+        }
+
+        .tech-badge.success {
+            background: #ecfdf5;
+            color: #065f46;
+        }
+
+        .tech-badge.warning {
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .tech-badge .icon {
+            font-size: 1rem;
+        }
+
+        /* LLM Context */
+        .llm-prompt {
+            background: var(--gray-900);
+            color: var(--gray-100);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.75rem;
+            line-height: 1.6;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.875rem;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+        }
+
+        /* Full Width Card */
+        .card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* Two Column Layout */
+        .two-columns {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .two-columns {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-top {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .overall-score {
+                margin: 1rem auto;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .card:nth-child(2) { animation-delay: 0.1s; }
+        .card:nth-child(3) { animation-delay: 0.2s; }
+        .card:nth-child(4) { animation-delay: 0.3s; }
+        .card:nth-child(5) { animation-delay: 0.4s; }
+        .card:nth-child(6) { animation-delay: 0.5s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-top">
+                <div class="site-info">
+                    <h1>SEO Analysis Report</h1>
+                    <a href="https://conusai.com" target="_blank" class="url">https://conusai.com</a>
+                    <div class="meta-info">
+                        <div class="meta-item">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span>December 14, 2025</span>
+                        </div>
+                        <div class="meta-item">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            <span>929ms crawl time</span>
+                        </div>
+                        <div class="meta-item">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/></svg>
+                            <span>Vercel</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="overall-score">
+                    <div class="score-circle" style="--score: 97">
+                        <span class="score-value">97</span>
+                    </div>
+                    <div class="score-label">Overall Score</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Score Cards -->
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        Category Scores
+                    </h2>
+                </div>
+                <div class="score-bars">
+                    <div class="score-bar-item">
+                        <div class="score-bar-header">
+                            <span class="score-bar-label">Technical</span>
+                            <span class="score-bar-value">100/100</span>
+                        </div>
+                        <div class="score-bar">
+                            <div class="score-bar-fill excellent" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="score-bar-item">
+                        <div class="score-bar-header">
+                            <span class="score-bar-label">On-Page</span>
+                            <span class="score-bar-value">100/100</span>
+                        </div>
+                        <div class="score-bar">
+                            <div class="score-bar-fill excellent" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="score-bar-item">
+                        <div class="score-bar-header">
+                            <span class="score-bar-label">Content</span>
+                            <span class="score-bar-value">90/100</span>
+                        </div>
+                        <div class="score-bar">
+                            <div class="score-bar-fill good" style="width: 90%"></div>
+                        </div>
+                    </div>
+                    <div class="score-bar-item">
+                        <div class="score-bar-header">
+                            <span class="score-bar-label">Structured Data</span>
+                            <span class="score-bar-value">100/100</span>
+                        </div>
+                        <div class="score-bar">
+                            <div class="score-bar-fill excellent" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="score-bar-item">
+                        <div class="score-bar-header">
+                            <span class="score-bar-label">AI Readiness</span>
+                            <span class="score-bar-value">95/100</span>
+                        </div>
+                        <div class="score-bar">
+                            <div class="score-bar-fill excellent" style="width: 95%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        Issues Found
+                    </h2>
+                </div>
+                <div class="issues-list">
+                    <div class="issue-item">
+                        <span class="issue-badge medium">Medium</span>
+                        <div class="issue-content">
+                            <div class="issue-message">No JSON-LD structured data found</div>
+                            <div class="issue-code">NO_SCHEMA • structured_data</div>
+                        </div>
+                    </div>
+                    <div class="issue-item">
+                        <span class="issue-badge low">Low</span>
+                        <div class="issue-content">
+                            <div class="issue-message">Some AI bots are blocked: Bytespider</div>
+                            <div class="issue-code">AI_BOTS_BLOCKED • ai_indexing</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                        Meta Tags
+                    </h2>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.75rem; color: var(--gray-500); margin-bottom: 0.25rem;">TITLE (59 chars)</div>
+                    <div style="font-size: 0.875rem; color: var(--gray-800); font-weight: 500;">ConusAI – AI-Powered Workflow Automation for Scalable Teams</div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.75rem; color: var(--gray-500); margin-bottom: 0.25rem;">DESCRIPTION (122 chars)</div>
+                    <div style="font-size: 0.875rem; color: var(--gray-600);">Cut repetitive tasks, unlock insights & scale efficiently with ConusAI AI automation. Transform your team workflows today.</div>
+                </div>
+                <div class="tech-badges">
+                    <span class="tech-badge success"><span class="icon">✓</span> Canonical</span>
+                    <span class="tech-badge success"><span class="icon">✓</span> Viewport</span>
+                    <span class="tech-badge success"><span class="icon">✓</span> Lang: en</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Content Metrics
+                    </h2>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-value">391</div>
+                        <div class="metric-label">Words</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">0.7m</div>
+                        <div class="metric-label">Read Time</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">20</div>
+                        <div class="metric-label">Images</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">6</div>
+                        <div class="metric-label">Links</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        Readability Scores
+                    </h2>
+                </div>
+                <div class="readability-grid">
+                    <div class="readability-item">
+                        <div class="readability-score">48.1</div>
+                        <div class="readability-label">Flesch Reading Ease</div>
+                    </div>
+                    <div class="readability-item">
+                        <div class="readability-score">10.1</div>
+                        <div class="readability-label">Flesch-Kincaid Grade</div>
+                    </div>
+                    <div class="readability-item">
+                        <div class="readability-score">11.5</div>
+                        <div class="readability-label">Gunning Fog</div>
+                    </div>
+                    <div class="readability-item">
+                        <div class="readability-score">11.9</div>
+                        <div class="readability-label">SMOG Index</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+                        Heading Structure
+                    </h2>
+                </div>
+                <div class="headings-tree">
+                    <div class="heading-item">
+                        <span class="heading-tag">H1</span>
+                        <span class="heading-text">(empty)</span>
+                        <span class="heading-count">×1</span>
+                    </div>
+                    <div class="heading-item">
+                        <span class="heading-tag">H2</span>
+                        <span class="heading-text">ABOUT US, Latest from Blog, Built for Scale...</span>
+                        <span class="heading-count">×5</span>
+                    </div>
+                    <div class="heading-item">
+                        <span class="heading-tag">H3</span>
+                        <span class="heading-text">Liutauras Medžiūnas, Tomas Čitavičius...</span>
+                        <span class="heading-count">×11</span>
+                    </div>
+                    <div class="heading-item">
+                        <span class="heading-tag">H4</span>
+                        <span class="heading-text">Training & Consulting</span>
+                        <span class="heading-count">×1</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/></svg>
+                        Top Keywords (TF-IDF)
+                    </h2>
+                </div>
+                <div class="keywords-container">
+                    <span class="keyword-tag">AI <span class="keyword-count">12</span></span>
+                    <span class="keyword-tag">ConusAI <span class="keyword-count">10</span></span>
+                    <span class="keyword-tag">Automation <span class="keyword-count">6</span></span>
+                    <span class="keyword-tag">Software <span class="keyword-count">4</span></span>
+                    <span class="keyword-tag">Time <span class="keyword-count">4</span></span>
+                    <span class="keyword-tag">Work <span class="keyword-count">4</span></span>
+                    <span class="keyword-tag">Send <span class="keyword-count">4</span></span>
+                    <span class="keyword-tag">Building <span class="keyword-count">3</span></span>
+                    <span class="keyword-tag">Years <span class="keyword-count">3</span></span>
+                    <span class="keyword-tag">CEO <span class="keyword-count">3</span></span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                        Social Preview
+                    </h2>
+                </div>
+                <div class="og-preview">
+                    <div class="og-image">
+                        <img src="https://conusai.com/images/og-image.png" alt="OG Preview" onerror="this.parentElement.innerHTML='<span style=\'color:var(--gray-400)\'>Image Preview</span>'">
+                    </div>
+                    <div class="og-content">
+                        <div class="og-site">conusai.com</div>
+                        <div class="og-title">ConusAI – AI-Powered Workflow Automation for Scalable Teams</div>
+                        <div class="og-description">Cut repetitive tasks, unlock insights & scale efficiently with ConusAI AI automation. Transform your team workflows today.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card full-width">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        AI Bot Permissions
+                    </h2>
+                </div>
+                <div class="bots-grid">
+                    <div class="bot-item"><span class="bot-status allowed"></span><span class="bot-name">GPTBot</span></div>
+                    <div class="bot-item"><span class="bot-status allowed"></span><span class="bot-name">OAI-SearchBot</span></div>
+                    <div class="bot-item"><span class="bot-status allowed"></span><span class="bot-name">ChatGPT-User</span></div>
+                    <div class="bot-item"><span class="bot-status allowed"></span><span class="bot-name">ClaudeBot</span></div>
+                    <div class="bot-item"><span class="bot-status allowed"></span><span class="bot-name">Claude-Web</span></div>
+                    <div class="bot-item"><span class="bot-status allowed"></span><span class="bot-name">anthropic-ai</span></div>
+                    <div class="bot-item"><span class="bot-status allowed"></span><span class="bot-name">Google-Extended</span></div>
+                    <div class="bot-item"><span class="bot-status allowed"></span><span class="bot-name">GoogleOther</span></div>
+                    <div class="bot-item"><span class="bot-status allowed"></span><span class="bot-name">PerplexityBot</span></div>
+                    <div class="bot-item"><span class="bot-status blocked"></span><span class="bot-name">Bytespider</span></div>
+                    <div class="bot-item"><span class="bot-status default"></span><span class="bot-name">CCBot</span></div>
+                    <div class="bot-item"><span class="bot-status default"></span><span class="bot-name">Amazonbot</span></div>
+                    <div class="bot-item"><span class="bot-status default"></span><span class="bot-name">Applebot-Extended</span></div>
+                    <div class="bot-item"><span class="bot-status default"></span><span class="bot-name">cohere-ai</span></div>
+                    <div class="bot-item"><span class="bot-status default"></span><span class="bot-name">Diffbot</span></div>
+                    <div class="bot-item"><span class="bot-status default"></span><span class="bot-name">FacebookBot</span></div>
+                </div>
+                <div style="margin-top: 1rem; display: flex; gap: 1rem; font-size: 0.75rem; color: var(--gray-500);">
+                    <span><span class="bot-status allowed" style="display: inline-block; vertical-align: middle;"></span> Explicitly Allowed</span>
+                    <span><span class="bot-status default" style="display: inline-block; vertical-align: middle;"></span> Allowed by Default</span>
+                    <span><span class="bot-status blocked" style="display: inline-block; vertical-align: middle;"></span> Blocked</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        Technical Details
+                    </h2>
+                </div>
+                <div class="tech-badges" style="flex-direction: column; align-items: flex-start; gap: 0.75rem;">
+                    <span class="tech-badge success"><span class="icon">🔒</span> HTTPS Enabled</span>
+                    <span class="tech-badge success"><span class="icon">⚡</span> Response: 912ms</span>
+                    <span class="tech-badge success"><span class="icon">📦</span> GZIP Compression</span>
+                    <span class="tech-badge success"><span class="icon">🗺️</span> Sitemap Present</span>
+                    <span class="tech-badge success"><span class="icon">🤖</span> robots.txt Present</span>
+                    <span class="tech-badge success"><span class="icon">📄</span> llms.txt Present</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                        Recommendations
+                    </h2>
+                </div>
+                <div class="recommendation-item">
+                    <span class="recommendation-priority">3</span>
+                    <div>
+                        <div class="recommendation-text">Add Schema.org JSON-LD markup (Organization, Article, FAQ, etc.)</div>
+                        <div class="recommendation-category">structured_data</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card full-width">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        LLM Context Prompt
+                    </h2>
+                </div>
+                <div class="llm-prompt">Analyze this SEO report and provide specific improvement recommendations:
+
+URL: https://conusai.com
+Overall Score: 97/100
+
+Current Issues:
+- [MEDIUM] No JSON-LD structured data found
+- [LOW] Some AI bots are blocked: Bytespider
+
+Key Metrics:
+- Word Count: 391
+- Has Structured Data: False
+- AI Indexing Ready: True
+- Top Keywords: conusai, automation, send, work, time
+
+Please provide:
+1. Priority fixes for critical SEO issues
+2. Content optimization suggestions based on keywords
+3. Structured data recommendations
+4. AI indexing optimization tips</div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Generated by <a href="#">SEO & AI Indexing Analyzer</a> • December 14, 2025</p>
+        </footer>
+    </div>
+</body>
+</html>

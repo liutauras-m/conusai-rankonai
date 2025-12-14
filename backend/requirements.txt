@@ -1,0 +1,23 @@
+# SEO & AI Indexing Analyzer - Dependencies
+
+# Core HTTP client with async support
+aiohttp>=3.9.0
+
+# HTML parsing
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# Text analysis
+textstat>=0.7.3
+
+# Optional: Advanced keyword extraction (TF-IDF)
+scikit-learn>=1.3.0
+
+# Optional: URL validation
+validators>=0.22.0
+
+# Multi-LLM support (optional - for using litellm unified interface)
+# litellm>=1.0.0
+
+# Environment variable loading
+python-dotenv>=1.0.0

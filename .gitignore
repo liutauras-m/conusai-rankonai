@@ -1,0 +1,117 @@
+# =============================================================================
+# ConusAI Tools - Git Ignore
+# =============================================================================
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# =============================================================================
+# Python
+# =============================================================================
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Type checkers
+.mypy_cache/
+.pytype/
+
+# =============================================================================
+# Node.js / Bun
+# =============================================================================
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Bun
+bun.lockb
+
+# =============================================================================
+# IDE / Editors
+# =============================================================================
+
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# =============================================================================
+# Data / Output (keep structure, ignore contents)
+# =============================================================================
+
+# Ignore generated files but keep directory
+data/generated/*
+!data/generated/.gitkeep
+
+# Keep reports structure
+# data/reports/*.json  # Uncomment to ignore report files
+
+# =============================================================================
+# Misc
+# =============================================================================
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Coverage reports
+coverage/
+*.lcov
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
