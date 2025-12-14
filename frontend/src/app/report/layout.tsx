@@ -101,6 +101,14 @@ function ReportLayoutShell({ children }: { children: React.ReactNode }) {
               <Mail className="h-4 w-4 shrink-0" />
               <span className="group-data-[collapsible=icon]:hidden">Contact Us</span>
             </a>
+            <a 
+              href="/docs/terms-and-conditions.md" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground/70 text-xs transition-colors hover:bg-muted hover:text-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
+            >
+              <span className="group-data-[collapsible=icon]:hidden">Terms & Conditions</span>
+            </a>
             <SidebarSeparator className="my-2 group-data-[collapsible=icon]:hidden" />
             <div className="space-y-1 group-data-[collapsible=icon]:hidden">
               <div className="flex items-center gap-2">

@@ -377,6 +377,14 @@ export default function Home() {
 						/>
 					</a>
 				</p>
+				<a
+					href="/docs/terms-and-conditions.md"
+					target="_blank"
+					rel="noopener noreferrer"
+					className="mt-2 inline-block text-muted-foreground/70 text-xs transition-colors hover:text-muted-foreground"
+				>
+					Terms & Conditions
+				</a>
 			</footer>
 
 			{/* Custom animations */}
