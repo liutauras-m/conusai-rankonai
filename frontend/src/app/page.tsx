@@ -2,22 +2,41 @@
 
 import Image from "next/image"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LoadingOverlay } from "@/components/ui/spinner"
 
 export default function Home() {
 	const [url, setUrl] = useState("")
 	const [loading, setLoading] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+	const router = useRouter()
 
 	const handleAnalyze = async () => {
 		if (!url) return
 		setLoading(true)
-		// TODO: Call API
-		console.log("Analyzing:", url)
-		setLoading(false)
+		setError(null)
+
+		// Normalize URL
+		let normalizedUrl = url.trim()
+		if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
+			normalizedUrl = `https://${normalizedUrl}`
+		}
+
+		// Navigate to report page with URL as query param
+		router.push(`/report?url=${encodeURIComponent(normalizedUrl)}`)
+	}
+
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter" && url) {
+			handleAnalyze()
+		}
 	}
 
 	return (
 		<div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4">
+			{loading && <LoadingOverlay message="Starting analysis..." />}
+			
 			<div className="absolute top-4 right-4">
 				<ThemeToggle />
 			</div>
@@ -45,15 +64,20 @@ export default function Home() {
 						type="url"
 						value={url}
 						onChange={(e) => setUrl(e.target.value)}
+						onKeyDown={handleKeyDown}
 						placeholder="https://example.com"
 						className="h-12 w-full rounded-md border border-input bg-background px-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#80CDC6]"
+						disabled={loading}
 					/>
+					{error && (
+						<p className="text-sm text-destructive">{error}</p>
+					)}
 					<button
 						onClick={handleAnalyze}
 						disabled={!url || loading}
 						className="h-12 w-full rounded-md bg-[#80CDC6] font-medium text-white transition-colors hover:bg-[#80CDC6]/90 disabled:pointer-events-none disabled:opacity-50"
 					>
-						{loading ? "Analysing..." : "Analyse"}
+						{loading ? "Starting..." : "Analyse"}
 					</button>
 				</div>
 
