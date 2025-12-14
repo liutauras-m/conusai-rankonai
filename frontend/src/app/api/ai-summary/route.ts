@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 
 // In Docker, use internal network. Locally use localhost.
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000"

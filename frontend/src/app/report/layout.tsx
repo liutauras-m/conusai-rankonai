@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation"
 import type { Route } from "next"
 import Link from "next/link"
 import Image from "next/image"
-import { BarChart3, Compass, Radio, Search, Megaphone, ChevronRight } from "lucide-react"
+import { BarChart3, Compass, Radio, Search, Megaphone, ChevronRight, Mail } from "lucide-react"
 
 import { ReportProvider, useReportContext } from "./report-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -92,6 +92,16 @@ function ReportLayoutShell({ children }: { children: React.ReactNode }) {
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter className="border-border/50 border-t p-4">
+            <a 
+              href="https://www.conusai.com/#contact-form" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
+            >
+              <Mail className="h-4 w-4 shrink-0" />
+              <span className="group-data-[collapsible=icon]:hidden">Contact Us</span>
+            </a>
+            <SidebarSeparator className="my-2 group-data-[collapsible=icon]:hidden" />
             <div className="space-y-1 group-data-[collapsible=icon]:hidden">
               <div className="flex items-center gap-2">
                 <div className={`h-1.5 w-1.5 rounded-full ${status === 'success' ? 'bg-emerald-500' : status === 'loading' ? 'animate-pulse bg-amber-500' : 'bg-muted-foreground'}`} />

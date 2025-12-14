@@ -631,11 +631,11 @@ Return ONLY the JSON array, no markdown or explanation."""
 @app.post("/ai-summary")
 async def generate_ai_summary(request: AISummaryRequest):
     """
-    Generate AI-powered summary with improvement recommendations.
+    Generate AI-powered comprehensive report summary in Markdown format.
     
-    - Explains each score category with actionable insights
-    - Provides platform-specific tips for ChatGPT, Claude, Gemini, Perplexity, etc.
-    - Prioritizes actions based on impact
+    - Provides detailed analysis explanation
+    - Platform-specific recommendations for AI discoverability
+    - Actionable improvement guide that can be used as a prompt
     - Results cached for 1 hour
     """
     analysis = request.analysis
@@ -669,7 +669,6 @@ async def generate_ai_summary(request: AISummaryRequest):
         ai_indexing = analysis.get("ai_indexing", {})
         issues = analysis.get("issues", [])
         recommendations = analysis.get("recommendations", [])
-        llm_context = analysis.get("llm_context", {})
         
         # Extract bot statuses
         bot_status = ai_indexing.get("robots_txt", {}).get("ai_bots_status", {})
@@ -677,173 +676,114 @@ async def generate_ai_summary(request: AISummaryRequest):
         # Format issues for prompt
         issues_text = "\n".join([
             f"- [{i.get('severity', 'unknown').upper()}] {i.get('message', '')}"
-            for i in issues[:10]
+            for i in issues[:15]
         ]) or "No significant issues found."
+        
+        # Format recommendations
+        recs_text = "\n".join([
+            f"- {r.get('message', '')}"
+            for r in recommendations[:10]
+        ]) or "No recommendations."
         
         # Format bot access
         allowed_bots = [bot for bot, status in bot_status.items() if "allowed" in status.lower()]
         blocked_bots = [bot for bot, status in bot_status.items() if "blocked" in status.lower()]
         
-        system_prompt = """You are a senior AI SEO strategist specializing in optimizing websites for AI assistant discoverability. 
-Your expertise spans all major AI platforms: ChatGPT/GPT-4, Claude, Gemini, Perplexity, Microsoft Copilot, Mistral, and others.
-Analyze SEO reports and provide actionable, expert-level recommendations.
-Return valid JSON only, no markdown formatting or code blocks."""
+        # Get structured data types
+        json_ld_types = [s.get("@type", "Unknown") for s in structured_data.get("json_ld", [])]
+        
+        system_prompt = """You are a senior AI SEO strategist writing a comprehensive analysis report. 
+Write in clear, professional Markdown format. Be specific, actionable, and thorough.
+This report will be used by developers and marketers to improve their website's AI discoverability.
+The output should be detailed enough to serve as a prompt for AI tools to implement fixes."""
 
-        user_prompt = f"""Analyze this comprehensive SEO report and generate an AI discoverability improvement summary.
+        user_prompt = f"""Write a comprehensive AI Discoverability Report for this website in Markdown format.
 
-WEBSITE: {url}
+## WEBSITE DATA
 
-CURRENT SCORES (0-100):
-- Overall: {scores.get('overall', 0)}
-- AI Readiness: {scores.get('ai_readiness', 0)}
-- Content: {scores.get('content', 0)}
-- Structured Data: {scores.get('structured_data', 0)}
-- On-Page SEO: {scores.get('on_page', 0)}
-- Technical: {scores.get('technical', 0)}
+**URL:** {url}
+**Title:** {metadata.get('title', {}).get('value', 'Not set')}
+**Description:** {metadata.get('description', {}).get('value', 'Not set')}
+**Language:** {metadata.get('language', 'Not detected')}
+**Word Count:** {content.get('word_count', 0)}
 
-METADATA:
-- Title: {metadata.get('title', {}).get('value', 'N/A')}
-- Description: {metadata.get('description', {}).get('value', 'N/A')}
-- Has Canonical: {bool(metadata.get('canonical'))}
-- Language: {metadata.get('language', 'N/A')}
+**Current Scores:**
+- Overall: {scores.get('overall', 0)}/100
+- AI Readiness: {scores.get('ai_readiness', 0)}/100
+- Content Quality: {scores.get('content', 0)}/100
+- Structured Data: {scores.get('structured_data', 0)}/100
+- On-Page SEO: {scores.get('on_page', 0)}/100
+- Technical: {scores.get('technical', 0)}/100
 
-CONTENT ANALYSIS:
-- Word Count: {content.get('word_count', 0)}
-- Top Keywords: {', '.join([k.get('keyword', '') for k in content.get('keywords_frequency', [])[:8]])}
-- Readability (Flesch): {content.get('readability', {}).get('flesch_reading_ease', 'N/A')}
+**Top Keywords:** {', '.join([k.get('keyword', '') for k in content.get('keywords_frequency', [])[:10]])}
+**Readability Score:** {content.get('readability', {}).get('flesch_reading_ease', 'N/A')}
 
-STRUCTURED DATA:
-- JSON-LD Schemas: {len(structured_data.get('json_ld', []))} found
-- Has Open Graph: {bool(structured_data.get('open_graph'))}
-- Has Twitter Card: {bool(structured_data.get('twitter_card'))}
+**Structured Data Found:**
+- JSON-LD Schemas: {', '.join(json_ld_types) if json_ld_types else 'None'}
+- Open Graph: {'Yes' if structured_data.get('open_graph') else 'No'}
+- Twitter Card: {'Yes' if structured_data.get('twitter_card') else 'No'}
 
-AI BOT ACCESS:
-- Has llms.txt: {ai_indexing.get('llms_txt', {}).get('present', False)}
-- Has sitemap.xml: {ai_indexing.get('sitemap_xml', {}).get('present', False)}
-- Allowed AI Bots: {', '.join(allowed_bots[:10]) if allowed_bots else 'None explicitly allowed'}
-- Blocked AI Bots: {', '.join(blocked_bots) if blocked_bots else 'None blocked'}
+**AI Bot Access:**
+- llms.txt: {'Present' if ai_indexing.get('llms_txt', {}).get('present') else 'Missing'}
+- sitemap.xml: {'Present' if ai_indexing.get('sitemap_xml', {}).get('present') else 'Missing'}
+- Allowed Bots: {', '.join(allowed_bots) if allowed_bots else 'None explicitly allowed'}
+- Blocked Bots: {', '.join(blocked_bots) if blocked_bots else 'None blocked'}
 
-CURRENT ISSUES:
+**Detected Issues:**
 {issues_text}
 
-Generate a JSON response with this exact structure:
+**Current Recommendations:**
+{recs_text}
 
-{{
-  "overallAssessment": {{
-    "rating": "Excellent|Good|Needs Improvement|Poor",
-    "summary": "2-3 sentence executive summary of AI discoverability status",
-    "primaryStrength": "The main thing this site does well for AI",
-    "primaryWeakness": "The most critical improvement needed"
-  }},
-  "scoreBreakdown": [
-    {{
-      "category": "AI Readiness",
-      "score": {scores.get('ai_readiness', 0)},
-      "rating": "Excellent|Good|Fair|Poor",
-      "explanation": "What this score means for AI discoverability",
-      "improvement": "Specific action to improve this score"
-    }},
-    {{
-      "category": "Content",
-      "score": {scores.get('content', 0)},
-      "rating": "Excellent|Good|Fair|Poor", 
-      "explanation": "How content quality affects AI understanding",
-      "improvement": "Content optimization suggestion"
-    }},
-    {{
-      "category": "Rich Data",
-      "score": {scores.get('structured_data', 0)},
-      "rating": "Excellent|Good|Fair|Poor",
-      "explanation": "Schema markup quality for AI extraction",
-      "improvement": "Structured data recommendation"
-    }},
-    {{
-      "category": "Structure",
-      "score": {scores.get('on_page', 0)},
-      "rating": "Excellent|Good|Fair|Poor",
-      "explanation": "How headings and meta info help AI",
-      "improvement": "On-page optimization tip"
-    }},
-    {{
-      "category": "Technical",
-      "score": {scores.get('technical', 0)},
-      "rating": "Excellent|Good|Fair|Poor",
-      "explanation": "Speed and security impact on AI crawling",
-      "improvement": "Technical enhancement suggestion"
-    }}
-  ],
-  "platformInsights": [
-    {{
-      "platform": "ChatGPT",
-      "status": "Optimized|Partially Optimized|Needs Work",
-      "tip": "Specific tip to improve discoverability on ChatGPT/OpenAI",
-      "botName": "GPTBot"
-    }},
-    {{
-      "platform": "Claude",
-      "status": "Optimized|Partially Optimized|Needs Work",
-      "tip": "Specific tip for Claude/Anthropic",
-      "botName": "ClaudeBot"
-    }},
-    {{
-      "platform": "Gemini",
-      "status": "Optimized|Partially Optimized|Needs Work",
-      "tip": "Specific tip for Google Gemini",
-      "botName": "Google-Extended"
-    }},
-    {{
-      "platform": "Perplexity",
-      "status": "Optimized|Partially Optimized|Needs Work",
-      "tip": "Specific tip for Perplexity AI search",
-      "botName": "PerplexityBot"
-    }},
-    {{
-      "platform": "Copilot",
-      "status": "Optimized|Partially Optimized|Needs Work",
-      "tip": "Specific tip for Microsoft Copilot",
-      "botName": "bingbot"
-    }},
-    {{
-      "platform": "Mistral",
-      "status": "Optimized|Partially Optimized|Needs Work",
-      "tip": "Specific tip for Mistral AI",
-      "botName": "MistralBot"
-    }}
-  ],
-  "prioritizedActions": [
-    {{
-      "priority": 1,
-      "action": "Most important action to take",
-      "impact": "High|Medium|Low",
-      "effort": "Quick Win|Moderate|Significant",
-      "category": "ai_readiness|content|structured_data|technical"
-    }},
-    {{
-      "priority": 2,
-      "action": "Second most important action",
-      "impact": "High|Medium|Low",
-      "effort": "Quick Win|Moderate|Significant",
-      "category": "ai_readiness|content|structured_data|technical"
-    }},
-    {{
-      "priority": 3,
-      "action": "Third action",
-      "impact": "High|Medium|Low",
-      "effort": "Quick Win|Moderate|Significant",
-      "category": "ai_readiness|content|structured_data|technical"
-    }}
-  ],
-  "quickWins": [
-    "Easy improvement 1 that can be done today",
-    "Easy improvement 2",
-    "Easy improvement 3"
-  ]
-}}
+---
 
-Return ONLY the JSON object, no markdown or explanation."""
+## REPORT REQUIREMENTS
+
+Write a detailed Markdown report with these sections:
+
+### 1. Executive Summary
+A 3-4 sentence overview of the website's AI discoverability status. What's working, what's not, and the biggest opportunity.
+
+### 2. Why This Matters for AI
+Explain in 2-3 paragraphs why AI discoverability is crucial in 2024-2025. How do ChatGPT, Claude, Perplexity, and other AI assistants find and recommend websites? What happens when a site isn't optimized?
+
+### 3. Platform-by-Platform Analysis
+For each major AI platform, provide:
+- **ChatGPT/OpenAI (GPTBot):** Current status and specific recommendations
+- **Claude/Anthropic (ClaudeBot):** Current status and specific recommendations  
+- **Google Gemini (Google-Extended):** Current status and specific recommendations
+- **Perplexity (PerplexityBot):** Current status and specific recommendations
+- **Microsoft Copilot (bingbot):** Current status and specific recommendations
+- **Mistral AI:** Current status and specific recommendations
+
+### 4. Critical Issues to Fix
+List the most important problems with detailed explanations of why each matters and exactly how to fix it. Be specific with code examples or configuration snippets where helpful.
+
+### 5. Content Optimization Guide
+Specific recommendations for improving content for AI consumption:
+- How to structure content for AI extraction
+- Keyword and topic optimization
+- FAQ and Q&A content suggestions
+- Semantic markup recommendations
+
+### 6. Technical Implementation Checklist
+A prioritized checklist of technical improvements:
+- [ ] Item 1 (High Priority)
+- [ ] Item 2 (Medium Priority)
+- etc.
+
+### 7. Quick Wins (Do Today)
+3-5 things that can be implemented immediately with minimal effort but high impact.
+
+### 8. AI Prompt for Implementation
+End with a ready-to-use prompt that developers can paste into an AI assistant to get help implementing these changes. Format it as a code block.
+
+---
+
+Write the complete report now. Be thorough, specific, and actionable. Use proper Markdown formatting."""
 
         import httpx
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers={
@@ -857,31 +797,18 @@ Return ONLY the JSON object, no markdown or explanation."""
                         {"role": "user", "content": user_prompt},
                     ],
                     "temperature": 0.7,
-                    "max_tokens": 3000,
+                    "max_tokens": 4000,
                 },
             )
             resp.raise_for_status()
             openai_data = resp.json()
         
-        raw_content = openai_data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        
-        # Clean markdown code blocks
-        cleaned = raw_content.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        elif cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-        cleaned = cleaned.strip()
-        
-        summary_data = json.loads(cleaned)
+        markdown_content = openai_data.get("choices", [{}])[0].get("message", {}).get("content", "")
         
         response = {
             "success": True,
             "url": url,
-            "scores": scores,
-            "summary": summary_data,
+            "markdown": markdown_content,
             "cached": False,
         }
         
@@ -897,8 +824,6 @@ Return ONLY the JSON object, no markdown or explanation."""
                 print(f"Cache write error: {e}")
         
         return response
-    except json.JSONDecodeError as e:
-        raise HTTPException(status_code=500, detail=f"Failed to parse AI response: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

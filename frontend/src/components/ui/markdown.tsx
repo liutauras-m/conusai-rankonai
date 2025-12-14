@@ -20,7 +20,7 @@ export function Markdown({ content, className }: MarkdownProps) {
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mt-4 mb-2 font-semibold text-foreground text-base first:mt-0">
+            <h2 className="mt-4 mb-2 font-semibold text-base text-foreground first:mt-0">
               {children}
             </h2>
           ),
@@ -46,7 +46,7 @@ export function Markdown({ content, className }: MarkdownProps) {
           ),
           // Emphasis/Italic
           em: ({ children }) => (
-            <em className="italic text-foreground/80">{children}</em>
+            <em className="text-foreground/80 italic">{children}</em>
           ),
           // Lists
           ul: ({ children }) => (
