@@ -3,6 +3,7 @@
 import { Clock, FileText, BarChart2, Zap } from "lucide-react"
 import { ScoresOverview } from "@/components/score-gauge"
 import { AIRecommendations } from "@/components/ai-recommendations"
+import { AISummary } from "@/components/ai-summary"
 import { Card, CardContent, } from "@/components/ui/card"
 import { AwaitingAnalysis } from "../../awaiting-analysis"
 import { useReportContext } from "../../report-context"
@@ -98,6 +99,9 @@ export default function OverviewPage() {
           </div>
         </section>
       )}
+
+      {/* AI Summary - Powered by GPT-4o */}
+      <AISummary analysis={analysis as Record<string, unknown>} />
 
       {/* Recommendations */}
       <AIRecommendations

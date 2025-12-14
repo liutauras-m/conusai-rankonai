@@ -69,6 +69,10 @@ class SuggestionsRequest(BaseModel):
     type: str  # "preferences" or "questions"
 
 
+class AISummaryRequest(BaseModel):
+    analysis: dict
+
+
 class AnalyzeResponse(BaseModel):
     url: str
     timestamp: str
@@ -123,6 +127,14 @@ def get_suggestions_cache_key(analysis: dict, suggestion_type: str) -> str:
     url = analysis.get("url", "")
     key_data = f"{url}:{suggestion_type}"
     return f"seo:suggestions:{hashlib.sha256(key_data.encode()).hexdigest()[:16]}"
+
+
+def get_ai_summary_cache_key(analysis: dict) -> str:
+    """Generate a cache key for AI summary."""
+    url = analysis.get("url", "")
+    scores = json.dumps(analysis.get("scores", {}), sort_keys=True)
+    key_data = f"{url}:{scores}"
+    return f"seo:ai_summary:{hashlib.sha256(key_data.encode()).hexdigest()[:16]}"
 
 
 @app.get("/health")
@@ -595,6 +607,281 @@ Return ONLY the JSON array, no markdown or explanation."""
             "success": True,
             "data": result_data,
             "type": suggestion_type,
+            "cached": False,
+        }
+        
+        # Cache the result
+        if redis_client:
+            try:
+                await redis_client.setex(
+                    cache_key,
+                    CACHE_TTL,
+                    json.dumps(response, ensure_ascii=False),
+                )
+            except Exception as e:
+                print(f"Cache write error: {e}")
+        
+        return response
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse AI response: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ai-summary")
+async def generate_ai_summary(request: AISummaryRequest):
+    """
+    Generate AI-powered summary with improvement recommendations.
+    
+    - Explains each score category with actionable insights
+    - Provides platform-specific tips for ChatGPT, Claude, Gemini, Perplexity, etc.
+    - Prioritizes actions based on impact
+    - Results cached for 1 hour
+    """
+    analysis = request.analysis
+    if not analysis:
+        raise HTTPException(status_code=400, detail="Analysis is required")
+    
+    cache_key = get_ai_summary_cache_key(analysis)
+    
+    # Check cache first
+    if redis_client:
+        try:
+            cached = await redis_client.get(cache_key)
+            if cached:
+                data = json.loads(cached)
+                data["cached"] = True
+                return data
+        except Exception as e:
+            print(f"Cache read error: {e}")
+    
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if not openai_key:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured")
+    
+    try:
+        # Extract comprehensive context from analysis
+        url = analysis.get("url", "")
+        scores = analysis.get("scores", {})
+        metadata = analysis.get("metadata", {})
+        content = analysis.get("content", {})
+        structured_data = analysis.get("structured_data", {})
+        ai_indexing = analysis.get("ai_indexing", {})
+        issues = analysis.get("issues", [])
+        recommendations = analysis.get("recommendations", [])
+        llm_context = analysis.get("llm_context", {})
+        
+        # Extract bot statuses
+        bot_status = ai_indexing.get("robots_txt", {}).get("ai_bots_status", {})
+        
+        # Format issues for prompt
+        issues_text = "\n".join([
+            f"- [{i.get('severity', 'unknown').upper()}] {i.get('message', '')}"
+            for i in issues[:10]
+        ]) or "No significant issues found."
+        
+        # Format bot access
+        allowed_bots = [bot for bot, status in bot_status.items() if "allowed" in status.lower()]
+        blocked_bots = [bot for bot, status in bot_status.items() if "blocked" in status.lower()]
+        
+        system_prompt = """You are a senior AI SEO strategist specializing in optimizing websites for AI assistant discoverability. 
+Your expertise spans all major AI platforms: ChatGPT/GPT-4, Claude, Gemini, Perplexity, Microsoft Copilot, Mistral, and others.
+Analyze SEO reports and provide actionable, expert-level recommendations.
+Return valid JSON only, no markdown formatting or code blocks."""
+
+        user_prompt = f"""Analyze this comprehensive SEO report and generate an AI discoverability improvement summary.
+
+WEBSITE: {url}
+
+CURRENT SCORES (0-100):
+- Overall: {scores.get('overall', 0)}
+- AI Readiness: {scores.get('ai_readiness', 0)}
+- Content: {scores.get('content', 0)}
+- Structured Data: {scores.get('structured_data', 0)}
+- On-Page SEO: {scores.get('on_page', 0)}
+- Technical: {scores.get('technical', 0)}
+
+METADATA:
+- Title: {metadata.get('title', {}).get('value', 'N/A')}
+- Description: {metadata.get('description', {}).get('value', 'N/A')}
+- Has Canonical: {bool(metadata.get('canonical'))}
+- Language: {metadata.get('language', 'N/A')}
+
+CONTENT ANALYSIS:
+- Word Count: {content.get('word_count', 0)}
+- Top Keywords: {', '.join([k.get('keyword', '') for k in content.get('keywords_frequency', [])[:8]])}
+- Readability (Flesch): {content.get('readability', {}).get('flesch_reading_ease', 'N/A')}
+
+STRUCTURED DATA:
+- JSON-LD Schemas: {len(structured_data.get('json_ld', []))} found
+- Has Open Graph: {bool(structured_data.get('open_graph'))}
+- Has Twitter Card: {bool(structured_data.get('twitter_card'))}
+
+AI BOT ACCESS:
+- Has llms.txt: {ai_indexing.get('llms_txt', {}).get('present', False)}
+- Has sitemap.xml: {ai_indexing.get('sitemap_xml', {}).get('present', False)}
+- Allowed AI Bots: {', '.join(allowed_bots[:10]) if allowed_bots else 'None explicitly allowed'}
+- Blocked AI Bots: {', '.join(blocked_bots) if blocked_bots else 'None blocked'}
+
+CURRENT ISSUES:
+{issues_text}
+
+Generate a JSON response with this exact structure:
+
+{{
+  "overallAssessment": {{
+    "rating": "Excellent|Good|Needs Improvement|Poor",
+    "summary": "2-3 sentence executive summary of AI discoverability status",
+    "primaryStrength": "The main thing this site does well for AI",
+    "primaryWeakness": "The most critical improvement needed"
+  }},
+  "scoreBreakdown": [
+    {{
+      "category": "AI Readiness",
+      "score": {scores.get('ai_readiness', 0)},
+      "rating": "Excellent|Good|Fair|Poor",
+      "explanation": "What this score means for AI discoverability",
+      "improvement": "Specific action to improve this score"
+    }},
+    {{
+      "category": "Content",
+      "score": {scores.get('content', 0)},
+      "rating": "Excellent|Good|Fair|Poor", 
+      "explanation": "How content quality affects AI understanding",
+      "improvement": "Content optimization suggestion"
+    }},
+    {{
+      "category": "Rich Data",
+      "score": {scores.get('structured_data', 0)},
+      "rating": "Excellent|Good|Fair|Poor",
+      "explanation": "Schema markup quality for AI extraction",
+      "improvement": "Structured data recommendation"
+    }},
+    {{
+      "category": "Structure",
+      "score": {scores.get('on_page', 0)},
+      "rating": "Excellent|Good|Fair|Poor",
+      "explanation": "How headings and meta info help AI",
+      "improvement": "On-page optimization tip"
+    }},
+    {{
+      "category": "Technical",
+      "score": {scores.get('technical', 0)},
+      "rating": "Excellent|Good|Fair|Poor",
+      "explanation": "Speed and security impact on AI crawling",
+      "improvement": "Technical enhancement suggestion"
+    }}
+  ],
+  "platformInsights": [
+    {{
+      "platform": "ChatGPT",
+      "status": "Optimized|Partially Optimized|Needs Work",
+      "tip": "Specific tip to improve discoverability on ChatGPT/OpenAI",
+      "botName": "GPTBot"
+    }},
+    {{
+      "platform": "Claude",
+      "status": "Optimized|Partially Optimized|Needs Work",
+      "tip": "Specific tip for Claude/Anthropic",
+      "botName": "ClaudeBot"
+    }},
+    {{
+      "platform": "Gemini",
+      "status": "Optimized|Partially Optimized|Needs Work",
+      "tip": "Specific tip for Google Gemini",
+      "botName": "Google-Extended"
+    }},
+    {{
+      "platform": "Perplexity",
+      "status": "Optimized|Partially Optimized|Needs Work",
+      "tip": "Specific tip for Perplexity AI search",
+      "botName": "PerplexityBot"
+    }},
+    {{
+      "platform": "Copilot",
+      "status": "Optimized|Partially Optimized|Needs Work",
+      "tip": "Specific tip for Microsoft Copilot",
+      "botName": "bingbot"
+    }},
+    {{
+      "platform": "Mistral",
+      "status": "Optimized|Partially Optimized|Needs Work",
+      "tip": "Specific tip for Mistral AI",
+      "botName": "MistralBot"
+    }}
+  ],
+  "prioritizedActions": [
+    {{
+      "priority": 1,
+      "action": "Most important action to take",
+      "impact": "High|Medium|Low",
+      "effort": "Quick Win|Moderate|Significant",
+      "category": "ai_readiness|content|structured_data|technical"
+    }},
+    {{
+      "priority": 2,
+      "action": "Second most important action",
+      "impact": "High|Medium|Low",
+      "effort": "Quick Win|Moderate|Significant",
+      "category": "ai_readiness|content|structured_data|technical"
+    }},
+    {{
+      "priority": 3,
+      "action": "Third action",
+      "impact": "High|Medium|Low",
+      "effort": "Quick Win|Moderate|Significant",
+      "category": "ai_readiness|content|structured_data|technical"
+    }}
+  ],
+  "quickWins": [
+    "Easy improvement 1 that can be done today",
+    "Easy improvement 2",
+    "Easy improvement 3"
+  ]
+}}
+
+Return ONLY the JSON object, no markdown or explanation."""
+
+        import httpx
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            resp = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {openai_key}",
+                },
+                json={
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 3000,
+                },
+            )
+            resp.raise_for_status()
+            openai_data = resp.json()
+        
+        raw_content = openai_data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        
+        # Clean markdown code blocks
+        cleaned = raw_content.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        elif cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+        
+        summary_data = json.loads(cleaned)
+        
+        response = {
+            "success": True,
+            "url": url,
+            "scores": scores,
+            "summary": summary_data,
             "cached": False,
         }
         
