@@ -1,6 +1,6 @@
 "use client"
 
-import { Clock, FileText, BarChart2, Zap } from "lucide-react"
+import { Clock, FileText, BarChart2, Zap, Sparkles } from "lucide-react"
 import { ScoresOverview } from "@/components/score-gauge"
 import { AIRecommendations } from "@/components/ai-recommendations"
 import { AISummary } from "@/components/ai-summary"
@@ -38,27 +38,39 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      {/* Scores Section */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <BarChart2 className="h-4 w-4 text-primary" />
-          <h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">Scorecard</h2>
+      {/* Hero Section: AI Summary + Scorecard - Two columns on desktop, stacked on mobile */}
+      <section className="grid gap-6 lg:grid-cols-2">
+        {/* AI Summary - Left on desktop, first on mobile */}
+        <div className="order-1 space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">AI Insights</h2>
+          </div>
+          <AISummary analysis={analysis as Record<string, unknown>} />
         </div>
-        
-        <Card className="overflow-hidden border-border/50">
-          <CardContent className="p-4 sm:p-6">
-            <ScoresOverview
-              scores={{
-                overall: analysis.scores?.overall ?? 0,
-                technical: analysis.scores?.technical ?? 0,
-                on_page: analysis.scores?.on_page ?? 0,
-                content: analysis.scores?.content ?? 0,
-                structured_data: analysis.scores?.structured_data ?? 0,
-                ai_readiness: analysis.scores?.ai_readiness ?? 0,
-              }}
-            />
-          </CardContent>
-        </Card>
+
+        {/* Scorecard - Right on desktop, second on mobile */}
+        <div className="order-2 space-y-4">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="h-4 w-4 text-primary" />
+            <h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">Scorecard</h2>
+          </div>
+          
+          <Card className="overflow-hidden border-border/50">
+            <CardContent className="p-4 sm:p-6">
+              <ScoresOverview
+                scores={{
+                  overall: analysis.scores?.overall ?? 0,
+                  technical: analysis.scores?.technical ?? 0,
+                  on_page: analysis.scores?.on_page ?? 0,
+                  content: analysis.scores?.content ?? 0,
+                  structured_data: analysis.scores?.structured_data ?? 0,
+                  ai_readiness: analysis.scores?.ai_readiness ?? 0,
+                }}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
       {/* Quick Metrics */}
@@ -99,9 +111,6 @@ export default function OverviewPage() {
           </div>
         </section>
       )}
-
-      {/* AI Summary - Powered by GPT-4o */}
-      <AISummary analysis={analysis as Record<string, unknown>} />
 
       {/* Recommendations */}
       <AIRecommendations

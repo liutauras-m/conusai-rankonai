@@ -209,21 +209,13 @@ export function AISummary({ analysis }: AISummaryProps) {
   if (!summary) return null
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-primary" />
-        <h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">
-          AI Improvement Summary
-        </h2>
-      </div>
-
-      <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 overflow-hidden">
-        {/* Overall Assessment Header */}
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          className="flex w-full items-center justify-between p-4 sm:p-6 text-left transition-colors hover:bg-primary/5"
-        >
+    <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 overflow-hidden">
+      {/* Overall Assessment Header */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center justify-between p-4 sm:p-6 text-left transition-colors hover:bg-primary/5"
+      >
           <div className="flex items-center gap-4">
             <div className={cn(
               "flex h-12 w-12 items-center justify-center rounded-xl border",
@@ -457,6 +449,5 @@ export function AISummary({ analysis }: AISummaryProps) {
           </div>
         )}
       </div>
-    </section>
   )
 }
