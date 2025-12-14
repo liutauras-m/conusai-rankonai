@@ -1,0 +1,17 @@
+{
+  "results": [
+    {
+      "name": "Grok",
+      "base_url": "https://x.ai",
+      "status": "ok",
+      "chosen": {
+        "url": "https://x.ai/favicon.ico",
+        "reason": "html:icon sizes=32x32",
+        "content_type": "image/x-icon"
+      },
+      "saved_path": "frontend/public/logos/platforms/grok.ico",
+      "error": null,
+      "timestamp": 1765741081
+    }
+  ]
+}

@@ -601,6 +601,27 @@ class MultiLLM:
 
 
 # ============================================================================
+# Helper Function for API Import
+# ============================================================================
+
+async def query_multiple_models(prompt: str, models: list[str] = None, system_prompt: str = None) -> dict:
+    """
+    Helper function to query multiple models.
+    Can be imported and used from the FastAPI backend.
+    
+    Args:
+        prompt: The prompt to send to models
+        models: List of model keys to query (e.g., ["gpt-4o", "grok"])
+        system_prompt: Optional system prompt
+    
+    Returns:
+        Dict with responses from all models
+    """
+    llm = MultiLLM(models)
+    return await llm.query_all(prompt, system_prompt)
+
+
+# ============================================================================
 # CLI Interface
 # ============================================================================
 

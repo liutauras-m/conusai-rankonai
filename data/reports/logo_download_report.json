@@ -1,0 +1,126 @@
+{
+  "results": [
+    {
+      "name": "ChatGPT",
+      "base_url": "https://chatgpt.com",
+      "status": "ok",
+      "chosen": {
+        "url": "https://cdn.oaistatic.com/assets/favicon-180x180-od45eci6.webp",
+        "reason": "html:apple-touch-icon sizes=180x180",
+        "content_type": "image/webp"
+      },
+      "saved_path": "frontend/public/logos/platforms/chatgpt.webp",
+      "error": null,
+      "timestamp": 1765740977
+    },
+    {
+      "name": "Claude",
+      "base_url": "https://claude.ai",
+      "status": "ok",
+      "chosen": {
+        "url": "https://claude.ai/apple-touch-icon.png",
+        "reason": "html:apple-touch-icon sizes=",
+        "content_type": "image/png"
+      },
+      "saved_path": "frontend/public/logos/platforms/claude.png",
+      "error": null,
+      "timestamp": 1765740979
+    },
+    {
+      "name": "Gemini",
+      "base_url": "https://gemini.google.com",
+      "status": "ok",
+      "chosen": {
+        "url": "https://www.gstatic.com/lamda/images/gemini_sparkle_4g_512_lt_f94943af3be039176192d.png",
+        "reason": "html:apple-touch-icon sizes=any",
+        "content_type": "image/png"
+      },
+      "saved_path": "frontend/public/logos/platforms/gemini.png",
+      "error": null,
+      "timestamp": 1765740980
+    },
+    {
+      "name": "Microsoft Copilot",
+      "base_url": "https://copilot.microsoft.com",
+      "status": "ok",
+      "chosen": {
+        "url": "https://copilot.microsoft.com/static/cmc/favicon.svg",
+        "reason": "html:icon sizes=",
+        "content_type": "image/svg+xml"
+      },
+      "saved_path": "frontend/public/logos/platforms/microsoft-copilot.svg",
+      "error": null,
+      "timestamp": 1765740984
+    },
+    {
+      "name": "Perplexity",
+      "base_url": "https://www.perplexity.ai",
+      "status": "error",
+      "chosen": null,
+      "saved_path": null,
+      "error": "HTTPError 403: Forbidden",
+      "timestamp": 1765740985
+    },
+    {
+      "name": "Grok",
+      "base_url": "https://x.ai",
+      "status": "ok",
+      "chosen": {
+        "url": "https://x.ai/favicon.ico",
+        "reason": "html:icon sizes=32x32",
+        "content_type": "image/x-icon"
+      },
+      "saved_path": "frontend/public/logos/platforms/grok.ico",
+      "error": null,
+      "timestamp": 1765740985
+    },
+    {
+      "name": "Meta AI",
+      "base_url": "https://ai.meta.com",
+      "status": "error",
+      "chosen": null,
+      "saved_path": null,
+      "error": "HTTPError 400: Bad Request",
+      "timestamp": 1765740986
+    },
+    {
+      "name": "Mistral",
+      "base_url": "https://mistral.ai",
+      "status": "ok",
+      "chosen": {
+        "url": "https://mistral.ai/apple-icon.png?apple-icon.08c19dae.png",
+        "reason": "html:apple-touch-icon sizes=180x180",
+        "content_type": "image/png"
+      },
+      "saved_path": "frontend/public/logos/platforms/mistral.png",
+      "error": null,
+      "timestamp": 1765740986
+    },
+    {
+      "name": "Cohere",
+      "base_url": "https://cohere.com",
+      "status": "ok",
+      "chosen": {
+        "url": "https://cohere.com/apple-touch-icon.png",
+        "reason": "html:apple-touch-icon sizes=180x180",
+        "content_type": "image/png"
+      },
+      "saved_path": "frontend/public/logos/platforms/cohere.png",
+      "error": null,
+      "timestamp": 1765740987
+    },
+    {
+      "name": "DeepSeek",
+      "base_url": "https://chat.deepseek.com",
+      "status": "ok",
+      "chosen": {
+        "url": "https://cdn.deepseek.com/chat/icon.png",
+        "reason": "html:apple-touch-icon sizes=",
+        "content_type": "image/png"
+      },
+      "saved_path": "frontend/public/logos/platforms/deepseek.png",
+      "error": null,
+      "timestamp": 1765740987
+    }
+  ]
+}

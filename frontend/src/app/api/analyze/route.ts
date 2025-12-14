@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server"
-import { spawn } from "child_process"
-import path from "path"
+import { type NextRequest, NextResponse } from "next/server"
+import { spawn } from "node:child_process"
+import path from "node:path"
 
 export const maxDuration = 60 // Allow up to 60 seconds for analysis
 

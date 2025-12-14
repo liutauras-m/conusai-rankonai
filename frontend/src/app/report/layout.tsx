@@ -1,0 +1,162 @@
+"use client"
+
+import { Suspense, useMemo } from "react"
+import { usePathname, useSearchParams } from "next/navigation"
+import type { Route } from "next"
+import Link from "next/link"
+import Image from "next/image"
+import { BarChart3, Compass, Radio, Search, Megaphone, ChevronRight } from "lucide-react"
+
+import { ReportProvider, useReportContext } from "./report-context"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { LoadingOverlay } from "@/components/ui/spinner"
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarSeparator, SidebarTrigger } from "@/components/ui/sidebar"
+import { Separator } from "@/components/ui/separator"
+
+const navItems = [
+  { href: "/report/overview", label: "Overview", icon: BarChart3 },
+  { href: "/report/insights", label: "Insights", icon: Compass },
+  { href: "/report/signals", label: "Signals", icon: Radio },
+  { href: "/report/keywords", label: "Keywords", icon: Search },
+  { href: "/report/marketing", label: "Marketing", icon: Megaphone },
+]
+
+function ReportLayoutShell({ children }: { children: React.ReactNode }) {
+  const { status, formattedTimestamp, error, queryString } = useReportContext()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+
+  const navSuffix = useMemo(() => (queryString ? `?${queryString}` : ""), [queryString])
+  const isActive = useMemo(() => {
+    return (href: string) => pathname === href
+  }, [pathname])
+
+  const displayUrl = useMemo(() => {
+    const url = searchParams.get("url")
+    if (!url) return null
+    try {
+      return new URL(url.startsWith("http") ? url : `https://${url}`).hostname
+    } catch {
+      return url
+    }
+  }, [searchParams])
+
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen bg-background text-foreground">
+        <Sidebar side="left" variant="inset" collapsible="icon" className="border-border/50 border-r">
+          <SidebarHeader className="p-4">
+            <Link href="/" className="group flex items-center gap-2">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
+                <Image
+                  src="/favicon.png"
+                  alt="Rank on AI"
+                  width={32}
+                  height={32}
+                  className="h-8 w-8"
+                />
+              </div>
+              <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+                <span className="font-semibold text-sm tracking-tight">Rank on AI</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest">Intelligence</span>
+              </div>
+            </Link>
+          </SidebarHeader>
+          <SidebarSeparator />
+          <SidebarContent className="px-2">
+            <SidebarGroup>
+              <SidebarGroupLabel className="px-2 text-[10px] uppercase tracking-widest group-data-[collapsible=icon]:hidden">Report</SidebarGroupLabel>
+              <SidebarMenu className="space-y-1">
+                {navItems.map((item) => {
+                  const href = `${item.href}${navSuffix}`
+                  const Icon = item.icon
+                  const active = isActive(item.href)
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton 
+                        asChild 
+                        size="default" 
+                        isActive={active}
+                        className={`group rounded-lg transition-all duration-200 ${active ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
+                      >
+                        <Link href={href as Route} className="flex items-center gap-3 px-3 py-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+                          <Icon className={`h-4 w-4 shrink-0 transition-colors ${active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                          <span className="flex-1 font-medium text-sm group-data-[collapsible=icon]:hidden">{item.label}</span>
+                          {active && <ChevronRight className="h-3 w-3 text-primary/60 group-data-[collapsible=icon]:hidden" />}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter className="border-border/50 border-t p-4">
+            <div className="space-y-1 group-data-[collapsible=icon]:hidden">
+              <div className="flex items-center gap-2">
+                <div className={`h-1.5 w-1.5 rounded-full ${status === 'success' ? 'bg-emerald-500' : status === 'loading' ? 'animate-pulse bg-amber-500' : 'bg-muted-foreground'}`} />
+                <p className="text-muted-foreground text-xs capitalize">{status}</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground/70">{formattedTimestamp}</p>
+            </div>
+            <SidebarTrigger className="mt-3 group-data-[collapsible=icon]:mt-0" />
+          </SidebarFooter>
+        </Sidebar>
+
+        <SidebarInset className="flex-1">
+          {status === "loading" && <LoadingOverlay message="Analyzing..." />}
+          <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 lg:p-8">
+            {/* Header */}
+            <header className="space-y-1">
+              <p className="font-medium text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
+                AI Visibility Report
+              </p>
+              <h1 className="font-semibold text-xl tracking-tight sm:text-2xl lg:text-3xl">
+                {displayUrl ? (
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-foreground">{displayUrl}</span>
+                  </span>
+                ) : (
+                  "Enter a URL to begin"
+                )}
+              </h1>
+            </header>
+
+            {error && (
+              <Card className="border-destructive/30 bg-destructive/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="font-medium text-destructive text-sm">Error</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-destructive/90 text-sm">{error}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            <Separator className="bg-border/50" />
+            
+            <main className="fade-in slide-in-from-bottom-4 animate-in duration-300">
+              {children}
+            </main>
+          </div>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
+  )
+}
+
+export default function ReportLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center bg-background">
+          <LoadingOverlay message="Loading..." />
+        </div>
+      }
+    >
+      <ReportProvider>
+        <ReportLayoutShell>{children}</ReportLayoutShell>
+      </ReportProvider>
+    </Suspense>
+  )
+}

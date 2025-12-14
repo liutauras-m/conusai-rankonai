@@ -7,10 +7,10 @@ interface ScoreGaugeProps {
 }
 
 function getScoreColor(score: number): string {
-	if (score >= 80) return "#22c55e" // green
-	if (score >= 60) return "#80CDC6" // brand mint
-	if (score >= 40) return "#eab308" // yellow
-	return "#ef4444" // red
+	if (score >= 80) return "oklch(0.72 0.14 142)" // forest-like green
+	if (score >= 60) return "oklch(0.78 0.08 175)" // brand mint/primary
+	if (score >= 40) return "oklch(0.78 0.16 75)"  // brand gold
+	return "oklch(0.68 0.18 25)" // brand coral/destructive
 }
 
 function getScoreLabel(score: number): string {
@@ -26,9 +26,9 @@ export function ScoreGauge({ score, label, size = "md" }: ScoreGaugeProps) {
 	
 	// SVG dimensions
 	const sizes = {
-		sm: { width: 96, strokeWidth: 8, fontSize: 18, labelSize: 10 },
-		md: { width: 128, strokeWidth: 10, fontSize: 24, labelSize: 12 },
-		lg: { width: 160, strokeWidth: 12, fontSize: 30, labelSize: 14 },
+		sm: { width: 88, strokeWidth: 6, fontSize: 16, labelSize: 9 },
+		md: { width: 120, strokeWidth: 8, fontSize: 22, labelSize: 11 },
+		lg: { width: 140, strokeWidth: 10, fontSize: 28, labelSize: 12 },
 	}
 	
 	const { width, strokeWidth, fontSize, labelSize } = sizes[size]
@@ -40,6 +40,7 @@ export function ScoreGauge({ score, label, size = "md" }: ScoreGaugeProps) {
 	return (
 		<div className="relative inline-flex items-center justify-center" style={{ width, height: width }}>
 			<svg
+				aria-hidden="true"
 				width={width}
 				height={width}
 				className="-rotate-90"
@@ -52,6 +53,7 @@ export function ScoreGauge({ score, label, size = "md" }: ScoreGaugeProps) {
 					fill="none"
 					stroke="hsl(var(--muted))"
 					strokeWidth={strokeWidth}
+					opacity={0.5}
 				/>
 				{/* Progress circle */}
 				<circle
@@ -64,15 +66,15 @@ export function ScoreGauge({ score, label, size = "md" }: ScoreGaugeProps) {
 					strokeLinecap="round"
 					strokeDasharray={circumference}
 					strokeDashoffset={offset}
-					className="transition-all duration-500 ease-out"
+					className="transition-all duration-700 ease-out"
 				/>
 			</svg>
 			<div className="absolute inset-0 flex flex-col items-center justify-center">
-				<span className="font-bold" style={{ color, fontSize }}>
+				<span className="font-semibold tabular-nums" style={{ color, fontSize }}>
 					{safeScore}
 				</span>
 				<span
-					className="text-muted-foreground text-center max-w-[80%] truncate"
+					className="max-w-[80%] truncate text-center font-medium text-muted-foreground"
 					style={{ fontSize: labelSize }}
 				>
 					{label}
@@ -93,14 +95,14 @@ export function ScoreCard({ score, label, description }: ScoreCardProps) {
 	const scoreLabel = getScoreLabel(score)
 
 	return (
-		<div className="flex flex-col items-center gap-2 rounded-lg border bg-card p-4">
+		<div className="flex flex-col items-center gap-2 rounded-xl border border-border/50 bg-card p-3 transition-all duration-200 hover:border-primary/20">
 			<ScoreGauge score={score} label={label} size="sm" />
 			<div className="text-center">
-				<p className="text-sm font-medium" style={{ color }}>
+				<p className="font-medium text-xs" style={{ color }}>
 					{scoreLabel}
 				</p>
 				{description && (
-					<p className="mt-1 text-xs text-muted-foreground">{description}</p>
+					<p className="mt-0.5 text-[10px] text-muted-foreground leading-tight">{description}</p>
 				)}
 			</div>
 		</div>
@@ -123,41 +125,43 @@ export function ScoresOverview({ scores }: ScoresOverviewProps) {
 		<div className="grid gap-6">
 			{/* Hero Score - AI Visibility */}
 			<div className="flex justify-center">
-				<div className="flex flex-col items-center gap-2">
+				<div className="flex flex-col items-center gap-3">
 					<ScoreGauge score={scores.ai_readiness} label="AI Visibility" size="lg" />
-					<p
-						className="text-sm font-medium"
-						style={{ color: getScoreColor(scores.ai_readiness) }}
-					>
-						{getScoreLabel(scores.ai_readiness)}
-					</p>
-					<p className="text-xs text-muted-foreground text-center max-w-xs">
-						How well AI assistants like ChatGPT can discover and recommend your site
-					</p>
+					<div className="text-center">
+						<p
+							className="font-medium text-sm"
+							style={{ color: getScoreColor(scores.ai_readiness) }}
+						>
+							{getScoreLabel(scores.ai_readiness)}
+						</p>
+						<p className="mt-1 max-w-[200px] text-muted-foreground text-xs">
+							AI assistant discoverability
+						</p>
+					</div>
 				</div>
 			</div>
 
 			{/* Secondary Scores */}
-			<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+			<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
 				<ScoreCard
 					score={scores.content}
-					label="Content Quality"
-					description="Is your content clear for AI to understand?"
+					label="Content"
+					description="Clarity for AI understanding"
 				/>
 				<ScoreCard
 					score={scores.structured_data}
 					label="Rich Data"
-					description="Schema markup AI can extract"
+					description="Schema markup quality"
 				/>
 				<ScoreCard
 					score={scores.on_page}
-					label="Page Structure"
-					description="Headings and meta information"
+					label="Structure"
+					description="Headings & meta info"
 				/>
 				<ScoreCard
 					score={scores.technical}
-					label="Technical Health"
-					description="Speed, security, accessibility"
+					label="Technical"
+					description="Speed & security"
 				/>
 			</div>
 		</div>

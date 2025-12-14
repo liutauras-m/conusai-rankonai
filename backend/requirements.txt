@@ -2,6 +2,7 @@
 
 # Core HTTP client with async support
 aiohttp>=3.9.0
+httpx>=0.25.0
 
 # HTML parsing
 beautifulsoup4>=4.12.0

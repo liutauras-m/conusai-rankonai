@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Lightbulb, Rocket, CheckCircle2, AlertTriangle, Info, ChevronDown } from "lucide-react"
 
 interface Issue {
 	severity: string
@@ -80,41 +80,26 @@ const ISSUE_EXPLANATIONS: Record<string, { title: string; impact: string; action
 	},
 }
 
+// Extract blocked crawlers from issue message
+function extractBlockedCrawlers(issue: Issue): string[] {
+	if (issue.code === "AI_BOTS_BLOCKED" && issue.message) {
+		const match = issue.message.match(/blocked:\s*(.+)$/i)
+		if (match) {
+			return match[1].split(",").map(s => s.trim()).filter(Boolean)
+		}
+	}
+	return []
+}
+
 function getImpactLevel(issue: Issue): "critical" | "important" | "minor" {
 	if (issue.severity === "high") return "critical"
 	if (issue.severity === "medium") return "important"
 	return "minor"
 }
 
-function getImpactColor(level: "critical" | "important" | "minor") {
-	switch (level) {
-		case "critical":
-			return {
-				bg: "bg-red-500/10",
-				border: "border-red-500/30",
-				text: "text-red-600 dark:text-red-400",
-				icon: "🔴",
-			}
-		case "important":
-			return {
-				bg: "bg-amber-500/10",
-				border: "border-amber-500/30",
-				text: "text-amber-600 dark:text-amber-400",
-				icon: "🟡",
-			}
-		case "minor":
-			return {
-				bg: "bg-blue-500/10",
-				border: "border-blue-500/30",
-				text: "text-blue-600 dark:text-blue-400",
-				icon: "🔵",
-			}
-	}
-}
-
 export function AIRecommendations({
 	issues,
-	recommendations,
+	recommendations: _recommendations,
 	scores,
 	aiIndexing,
 }: AIRecommendationsProps) {
@@ -173,176 +158,198 @@ export function AIRecommendations({
 	}
 
 	return (
-		<div className="space-y-6">
-			{/* Quick Wins Summary */}
-			<Card>
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<span className="text-xl">💡</span>
-						What to Improve
-					</CardTitle>
-					<CardDescription>
-						Actions that will help AI assistants find and recommend your brand
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{/* Stats Bar */}
-					<div className="mb-6 flex flex-wrap gap-4 rounded-lg bg-muted/50 p-4">
-						<div className="flex items-center gap-2">
-							<span className="text-red-500">🔴</span>
-							<span className="text-sm">
-								<strong>{criticalIssues.length}</strong> critical
-							</span>
+		<section className="space-y-4">
+			<div className="flex items-center gap-2">
+				<Lightbulb className="h-4 w-4 text-primary" />
+				<h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">Recommendations</h2>
+			</div>
+
+			<div className="rounded-xl border border-border/50 bg-card p-4 sm:p-6">
+				{/* Stats Bar */}
+				<div className="mb-5 grid grid-cols-3 gap-3">
+					<div className="rounded-lg bg-destructive/5 p-3 text-center">
+						<div className="font-semibold text-destructive text-lg tabular-nums">
+							{criticalIssues.length}
 						</div>
-						<div className="flex items-center gap-2">
-							<span className="text-amber-500">🟡</span>
-							<span className="text-sm">
-								<strong>{importantIssues.length}</strong> important
-							</span>
+						<div className="text-muted-foreground text-xs">Critical</div>
+					</div>
+					<div className="rounded-lg bg-secondary p-3 text-center">
+						<div className="font-semibold text-lg text-secondary-foreground tabular-nums">
+							{importantIssues.length}
 						</div>
-						<div className="flex items-center gap-2">
-							<span className="text-blue-500">🔵</span>
-							<span className="text-sm">
-								<strong>{minorIssues.length}</strong> minor
-							</span>
+						<div className="text-muted-foreground text-xs">Important</div>
+					</div>
+					<div className="rounded-lg bg-muted/50 p-3 text-center">
+						<div className="font-semibold text-lg text-muted-foreground tabular-nums">
+							{minorIssues.length}
+						</div>
+						<div className="text-muted-foreground text-xs">Minor</div>
+					</div>
+				</div>
+
+				{/* No Issues */}
+				{issues.length === 0 && smartRecommendations.length === 0 && (
+					<div className="rounded-xl border border-primary/20 bg-primary/5 p-6 text-center">
+						<CheckCircle2 className="mx-auto h-8 w-8 text-primary" />
+						<h3 className="mt-2 font-medium text-foreground">Looking Great!</h3>
+						<p className="mt-1 text-muted-foreground text-sm">
+							Your site is well-optimized for AI visibility.
+						</p>
+					</div>
+				)}
+
+				{/* Smart Recommendations */}
+				{smartRecommendations.length > 0 && (
+					<div className="mb-5">
+						<h4 className="mb-3 flex items-center gap-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+							<Rocket className="h-3 w-3" /> Recommended Actions
+						</h4>
+						<div className="space-y-2">
+							{smartRecommendations.map((rec) => (
+								<div
+									key={rec.title}
+									className={`rounded-lg border p-4 transition-all duration-200 hover:border-primary/20 ${
+										rec.impact === "high"
+											? "border-primary/30 bg-primary/5"
+											: "border-border/50 bg-background"
+									}`}
+								>
+									<div className="flex items-start gap-3">
+										<div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
+											rec.impact === "high" ? "bg-primary" : "bg-muted-foreground"
+										}`} />
+										<div>
+											<h5 className="font-medium text-foreground text-sm">{rec.title}</h5>
+											<p className="mt-1 text-muted-foreground text-sm leading-relaxed">
+												{rec.description}
+											</p>
+										</div>
+									</div>
+								</div>
+							))}
 						</div>
 					</div>
+				)}
 
-					{/* No Issues */}
-					{issues.length === 0 && smartRecommendations.length === 0 && (
-						<div className="rounded-lg border border-green-200 bg-green-50 p-6 text-center dark:border-green-800/50 dark:bg-green-900/20">
-							<span className="text-4xl">🎉</span>
-							<h3 className="mt-2 font-semibold text-green-800 dark:text-green-200">
-								Looking Great!
-							</h3>
-							<p className="mt-1 text-sm text-green-700 dark:text-green-300">
-								Your site is well-optimized for AI search visibility.
-							</p>
-						</div>
-					)}
-
-					{/* Smart Recommendations */}
-					{smartRecommendations.length > 0 && (
-						<div className="mb-6">
-							<h4 className="mb-3 font-medium text-foreground">
-								🚀 Recommended Actions
-							</h4>
-							<div className="space-y-3">
-								{smartRecommendations.map((rec, idx) => (
+				{/* Critical Issues */}
+				{criticalIssues.length > 0 && (
+					<div className="mb-5">
+						<h4 className="mb-3 flex items-center gap-2 font-medium text-destructive text-xs uppercase tracking-wider">
+							<AlertTriangle className="h-3 w-3" /> Critical Issues
+						</h4>
+						<div className="space-y-2">
+							{criticalIssues.map((issue) => {
+								const explanation = ISSUE_EXPLANATIONS[issue.code]
+								return (
 									<div
-										key={idx}
-										className={`rounded-lg border p-4 ${
-											rec.impact === "high"
-												? "border-primary/30 bg-primary/5"
-												: "border-border bg-card"
-										}`}
+										key={issue.code}
+										className="rounded-lg border border-destructive/20 bg-destructive/5 p-4"
 									>
-										<div className="flex items-start gap-3">
-											<span className="text-lg">
-												{rec.impact === "high"
-													? "⭐"
-													: rec.impact === "medium"
-														? "📌"
-														: "💭"}
-											</span>
-											<div>
-												<h5 className="font-medium text-foreground">{rec.title}</h5>
-												<p className="mt-1 text-sm text-muted-foreground">
-													{rec.description}
-												</p>
-											</div>
-										</div>
+										<p className="font-medium text-foreground text-sm">
+											{explanation?.title || issue.message}
+										</p>
+										{explanation && (
+											<p className="mt-1 text-muted-foreground text-xs">
+												{explanation.impact}
+											</p>
+										)}
+										<p className="mt-2 text-foreground text-xs">
+											<span className="font-medium">Fix:</span>{" "}
+											{explanation?.action || "Address this issue to improve visibility"}
+										</p>
 									</div>
-								))}
-							</div>
+								)
+							})}
 						</div>
-					)}
+					</div>
+				)}
 
-					{/* Critical Issues */}
-					{criticalIssues.length > 0 && (
-						<div className="mb-6">
-							<h4 className="mb-3 font-medium text-red-600 dark:text-red-400">
-								🔴 Critical Issues
-							</h4>
-							<div className="space-y-2">
-								{criticalIssues.map((issue, idx) => {
-									const explanation = ISSUE_EXPLANATIONS[issue.code]
-									const colors = getImpactColor("critical")
-									return (
-										<div
-											key={idx}
-											className={`rounded-lg border ${colors.border} ${colors.bg} p-3`}
-										>
-											<p className="font-medium text-foreground">
-												{explanation?.title || issue.message}
+				{/* Important Issues */}
+				{importantIssues.length > 0 && (
+					<div className="mb-5">
+						<h4 className="mb-3 flex items-center gap-2 font-medium text-secondary-foreground text-xs uppercase tracking-wider">
+							<Info className="h-3 w-3" /> Important Improvements
+						</h4>
+						<div className="space-y-2">
+							{importantIssues.slice(0, 5).map((issue) => {
+								const explanation = ISSUE_EXPLANATIONS[issue.code]
+								const blockedCrawlers = extractBlockedCrawlers(issue)
+								return (
+									<div key={issue.code} className="rounded-lg border border-border/50 bg-background p-3">
+										<p className="font-medium text-foreground text-sm">
+											{explanation?.title || issue.message}
+										</p>
+										{blockedCrawlers.length > 0 && (
+											<p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+												<span className="text-muted-foreground">Blocked:</span>
+												{blockedCrawlers.map((crawler) => (
+													<span 
+														key={crawler}
+														className="rounded bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-600 dark:text-amber-400"
+													>
+														{crawler}
+													</span>
+												))}
 											</p>
-											{explanation && (
-												<p className="mt-1 text-sm text-muted-foreground">
-													<strong>Impact:</strong> {explanation.impact}
-												</p>
-											)}
-											<p className="mt-1 text-sm text-muted-foreground">
-												<strong>Fix:</strong>{" "}
-												{explanation?.action || "Address this issue to improve visibility"}
+										)}
+										{explanation && !blockedCrawlers.length && (
+											<p className="mt-1 text-muted-foreground text-xs">
+												{explanation.action}
 											</p>
-										</div>
-									)
-								})}
-							</div>
+										)}
+										{blockedCrawlers.length > 0 && explanation && (
+											<p className="mt-1.5 text-muted-foreground text-xs">
+												{explanation.action}
+											</p>
+										)}
+									</div>
+								)
+							})}
+							{importantIssues.length > 5 && (
+								<p className="pt-1 text-muted-foreground text-xs">
+									+{importantIssues.length - 5} more improvements
+								</p>
+							)}
 						</div>
-					)}
+					</div>
+				)}
 
-					{/* Important Issues */}
-					{importantIssues.length > 0 && (
-						<div className="mb-6">
-							<h4 className="mb-3 font-medium text-amber-600 dark:text-amber-400">
-								🟡 Important Improvements
-							</h4>
-							<div className="space-y-2">
-								{importantIssues.slice(0, 5).map((issue, idx) => {
-									const explanation = ISSUE_EXPLANATIONS[issue.code]
-									return (
-										<div key={idx} className="rounded-lg border border-border p-3">
-											<p className="text-sm font-medium text-foreground">
-												{explanation?.title || issue.message}
-											</p>
-											{explanation && (
-												<p className="mt-1 text-xs text-muted-foreground">
-													{explanation.action}
-												</p>
-											)}
-										</div>
-									)
-								})}
-								{importantIssues.length > 5 && (
-									<p className="text-sm text-muted-foreground">
-										+{importantIssues.length - 5} more improvements
-									</p>
-								)}
-							</div>
-						</div>
-					)}
-
-					{/* Minor Issues (collapsed) */}
-					{minorIssues.length > 0 && (
-						<details className="group">
-							<summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-								🔵 {minorIssues.length} minor suggestions
-							</summary>
-							<div className="mt-3 space-y-2">
-								{minorIssues.map((issue, idx) => (
+				{/* Minor Issues (collapsed) */}
+				{minorIssues.length > 0 && (
+					<details className="group">
+						<summary className="flex cursor-pointer items-center gap-1 text-muted-foreground text-xs transition-colors hover:text-foreground">
+							<ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
+							{minorIssues.length} minor suggestions
+						</summary>
+						<div className="mt-3 space-y-2">
+							{minorIssues.map((issue) => {
+								const blockedCrawlers = extractBlockedCrawlers(issue)
+								return (
 									<div
-										key={idx}
-										className="rounded border border-border p-2 text-sm text-muted-foreground"
+										key={issue.code}
+										className="rounded border border-border/30 px-3 py-2 text-muted-foreground text-xs"
 									>
-										{ISSUE_EXPLANATIONS[issue.code]?.title || issue.message}
+										<p>{ISSUE_EXPLANATIONS[issue.code]?.title || issue.message}</p>
+										{blockedCrawlers.length > 0 && (
+											<p className="mt-1.5 flex flex-wrap gap-1.5">
+												<span className="font-medium text-foreground">Blocked:</span>
+												{blockedCrawlers.map((crawler) => (
+													<span 
+														key={crawler}
+														className="rounded bg-amber-500/10 px-1.5 py-0.5 text-amber-600 dark:text-amber-400"
+													>
+														{crawler}
+													</span>
+												))}
+											</p>
+										)}
 									</div>
-								))}
-							</div>
-						</details>
-					)}
-				</CardContent>
-			</Card>
-		</div>
+								)
+							})}
+						</div>
+					</details>
+				)}
+			</div>
+		</section>
 	)
 }

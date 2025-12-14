@@ -8,9 +8,19 @@ from pathlib import Path
 from typing import Optional
 
 # Find root .env file (parent of backend directory)
-ROOT_DIR = Path(__file__).parent.parent
+# In Docker, BACKEND_DIR is /app, so we use /app for data too
 BACKEND_DIR = Path(__file__).parent
-DATA_DIR = ROOT_DIR / "data"
+IS_DOCKER = os.environ.get("REDIS_URL", "").startswith("redis://redis:")
+
+if IS_DOCKER:
+    # In Docker, use /app directory for everything
+    ROOT_DIR = BACKEND_DIR
+    DATA_DIR = BACKEND_DIR / "data"
+else:
+    # In development, use parent directory
+    ROOT_DIR = BACKEND_DIR.parent
+    DATA_DIR = ROOT_DIR / "data"
+
 REPORTS_DIR = DATA_DIR / "reports"
 GENERATED_DIR = DATA_DIR / "generated"
 
@@ -60,9 +70,10 @@ def get_api_key(provider: str) -> Optional[str]:
     return value if value else None
 
 
-# Ensure directories exist
-REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+# Ensure directories exist (only in development, Docker container has limited perms)
+if not IS_DOCKER:
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # Export commonly used paths as strings for compatibility

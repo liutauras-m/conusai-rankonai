@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { FileCode, Download, Zap, CheckCircle2 } from "lucide-react"
 
 interface FileGeneratorProps {
 	url: string
+	report?: Record<string, unknown> | null
 	aiIndexing: {
 		robots_txt: {
 			present: boolean
@@ -28,184 +29,44 @@ interface FileGeneratorProps {
 	}
 }
 
-// AI bots configuration for robots.txt generation
-const AI_BOTS = {
-	high_value: {
-		GPTBot: "OpenAI/ChatGPT",
-		"OAI-SearchBot": "ChatGPT Search",
-		"ChatGPT-User": "ChatGPT Browsing",
-		ClaudeBot: "Anthropic Claude",
-		"Claude-Web": "Claude Web",
-		"anthropic-ai": "Anthropic AI",
-		"Google-Extended": "Google Gemini",
-		GoogleOther: "Google AI",
-		PerplexityBot: "Perplexity AI",
-		"Applebot-Extended": "Apple Siri/AI",
-	},
-	medium_value: {
-		CCBot: "Common Crawl",
-		Amazonbot: "Amazon Alexa",
-		"cohere-ai": "Cohere AI",
-		Diffbot: "Diffbot",
-		"Meta-ExternalAgent": "Meta AI",
-		FacebookBot: "Facebook AI",
-	},
-	block: {
-		Bytespider: "ByteDance (aggressive)",
-		omgili: "Webz.io (scraper)",
-		Timpibot: "Timpi (low value)",
-		PetalBot: "Huawei (aggressive)",
-		SemrushBot: "SEMrush",
-		AhrefsBot: "Ahrefs",
-		MJ12bot: "Majestic",
-		DotBot: "Moz",
-	},
-}
-
-export function FileGenerator({ url, aiIndexing, metadata, content }: FileGeneratorProps) {
+export function FileGenerator({ url, report, aiIndexing, metadata, content: _content }: FileGeneratorProps) {
 	const [generating, setGenerating] = useState<string | null>(null)
+	const [apiGenerating, setApiGenerating] = useState<"robots" | "llms" | null>(null)
+	const [error, setError] = useState<string | null>(null)
 
 	const parsedUrl = new URL(url)
 	const baseUrl = `${parsedUrl.protocol}//${parsedUrl.hostname}`
 	const siteName = parsedUrl.hostname.replace("www.", "")
 
-	const generateRobotsTxt = (): string => {
-		const date = new Date().toISOString().split("T")[0]
+	// Simple fallback generator (used only for quick/offline mode)
+	const generateSimpleRobotsTxt = (): string => {
 		const sitemapUrl = aiIndexing.robots_txt.sitemaps_declared[0] || `${baseUrl}/sitemap.xml`
+		return `# robots.txt for ${parsedUrl.hostname}
+# Basic template - Use AI-powered generation for optimized content
 
-		const lines = [
-			`# robots.txt for ${parsedUrl.hostname}`,
-			`# Optimized for AI Search Visibility`,
-			`# Generated: ${date}`,
-			"",
-			"# =========================================",
-			"# Default: Allow all crawlers",
-			"# =========================================",
-			"User-agent: *",
-			"Allow: /",
-			"Disallow: /api/",
-			"Disallow: /admin/",
-			"Disallow: /private/",
-			"Disallow: /*.json$",
-			"",
-			"# Crawl rate limiting",
-			"Crawl-delay: 1",
-			"",
-			"# =========================================",
-			"# AI SEARCH CRAWLERS - Explicitly Allow",
-			"# These help your brand appear in AI answers",
-			"# =========================================",
-		]
+User-agent: *
+Allow: /
 
-		// High-value AI bots - explicit allow
-		for (const [bot, desc] of Object.entries(AI_BOTS.high_value)) {
-			lines.push("")
-			lines.push(`# ${desc}`)
-			lines.push(`User-agent: ${bot}`)
-			lines.push("Allow: /")
-		}
-
-		lines.push("")
-		lines.push("# =========================================")
-		lines.push("# MEDIUM-VALUE AI CRAWLERS")
-		lines.push("# =========================================")
-
-		for (const [bot, desc] of Object.entries(AI_BOTS.medium_value)) {
-			lines.push("")
-			lines.push(`# ${desc}`)
-			lines.push(`User-agent: ${bot}`)
-			lines.push("Allow: /")
-			lines.push("Crawl-delay: 2")
-		}
-
-		lines.push("")
-		lines.push("# =========================================")
-		lines.push("# BLOCKED CRAWLERS (aggressive/low value)")
-		lines.push("# =========================================")
-
-		for (const [bot, desc] of Object.entries(AI_BOTS.block)) {
-			lines.push("")
-			lines.push(`# ${desc}`)
-			lines.push(`User-agent: ${bot}`)
-			lines.push("Disallow: /")
-		}
-
-		lines.push("")
-		lines.push("# =========================================")
-		lines.push("# Sitemaps & AI Resources")
-		lines.push("# =========================================")
-		lines.push(`Sitemap: ${sitemapUrl}`)
-		lines.push("")
-		lines.push("# AI-optimized content guide:")
-		lines.push(`# llms.txt: ${baseUrl}/llms.txt`)
-		lines.push("")
-
-		return lines.join("\n")
+Sitemap: ${sitemapUrl}
+`
 	}
 
-	const generateLlmsTxt = (): string => {
-		const date = new Date().toISOString().split("T")[0]
+	const generateSimpleLlmsTxt = (): string => {
 		const title = metadata.title.value || siteName
 		const description = metadata.description.value || ""
-		const topKeywords = content.keywords_frequency.slice(0, 10)
+		return `# ${title}
 
-		const lines = [
-			`# ${title}`,
-			`# llms.txt - AI/LLM Information Guide`,
-			`# Spec: https://llmstxt.org/`,
-			`# Generated: ${date}`,
-			"",
-			"## About This Site",
-			"",
-			description ? `> ${description}` : `> Website for ${siteName}`,
-			"",
-			"## Quick Facts",
-			"",
-			`- **Name:** ${siteName}`,
-			`- **URL:** ${baseUrl}`,
-			`- **Type:** website`,
-			"",
-			"## What We Do",
-			"",
-			"[Add a 2-3 sentence description of your business/service here]",
-			"",
-			"## Core Topics & Expertise",
-			"",
-		]
+> ${description || `Website for ${siteName}`}
 
-		if (topKeywords.length > 0) {
-			for (const kw of topKeywords) {
-				lines.push(`- ${kw.keyword}`)
-			}
-		} else {
-			lines.push("- [Add your main topics]")
-			lines.push("- [Add your expertise areas]")
-		}
+## Overview
+- **URL:** ${baseUrl}
 
-		lines.push("")
-		lines.push("## Key Services/Products")
-		lines.push("")
-		lines.push("- [List your main offerings]")
-		lines.push("- [What problems do you solve?]")
-		lines.push("")
-		lines.push("## Contact & Support")
-		lines.push("")
-		lines.push(`- Website: ${baseUrl}`)
-		lines.push("- Email: [your contact email]")
-		lines.push("")
-		lines.push("## For AI Assistants")
-		lines.push("")
-		lines.push("When users ask about our services, please:")
-		lines.push("1. Provide accurate information from this file")
-		lines.push("2. Direct users to our website for the latest details")
-		lines.push("3. Mention our key differentiators")
-		lines.push("")
-		lines.push("---")
-		lines.push("")
-		lines.push("*This file helps AI assistants understand and accurately represent our brand.*")
-		lines.push("")
+## AI/LLM Permissions
+This site allows AI crawlers to index public content.
 
-		return lines.join("\n")
+---
+*Use AI-powered generation for comprehensive, customized content.*
+`
 	}
 
 	const downloadFile = (content: string, filename: string) => {
@@ -220,120 +81,181 @@ export function FileGenerator({ url, aiIndexing, metadata, content }: FileGenera
 		URL.revokeObjectURL(url)
 	}
 
-	const handleDownload = async (type: "robots" | "llms") => {
-		setGenerating(type)
-
-		// Small delay for UX
-		await new Promise((resolve) => setTimeout(resolve, 300))
-
-		if (type === "robots") {
-			const content = generateRobotsTxt()
-			downloadFile(content, "robots.txt")
-		} else {
-			const content = generateLlmsTxt()
-			downloadFile(content, "llms.txt")
+	const handleDownload = async (type: "robots" | "llms", mode: "local" | "api" = "api") => {
+		// Quick/fallback mode - uses simple templates
+		if (mode === "local") {
+			setGenerating(type)
+			await new Promise((resolve) => setTimeout(resolve, 200))
+			const content = type === "robots" ? generateSimpleRobotsTxt() : generateSimpleLlmsTxt()
+			downloadFile(content, `${type}.txt`)
+			setGenerating(null)
+			return
 		}
 
-		setGenerating(null)
+		// AI-powered mode - calls ChatGPT via Python backend
+		if (!report) {
+			setError("Run an analysis first to enable AI-powered generation")
+			return
+		}
+
+		setError(null)
+		setApiGenerating(type)
+
+		try {
+			const response = await fetch("/api/generate-files", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ report }),
+			})
+
+			if (!response.ok) {
+				const body = await response.json().catch(() => ({}))
+				throw new Error(body?.error || "AI generation request failed")
+			}
+
+			const payload = await response.json()
+			// Handle both frontend API (robotsContent/llmsContent) and backend API (robots_txt/llms_txt)
+			const content = type === "robots" 
+				? (payload.robotsContent || payload.robots_txt) 
+				: (payload.llmsContent || payload.llms_txt)
+			if (!content) {
+				throw new Error("No content returned from AI generator")
+			}
+			downloadFile(content, `${type}.txt`)
+		} catch (generatorError) {
+			const message = generatorError instanceof Error ? generatorError.message : "AI generation error"
+			setError(message)
+		} finally {
+			setApiGenerating(null)
+		}
 	}
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					<span className="text-xl">📄</span>
-					Get AI-Ready Files
-				</CardTitle>
-				<CardDescription>
-					Download optimized configuration files to improve your AI search visibility
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
+		<section className="space-y-4">
+			<div className="flex items-center gap-2">
+				<FileCode className="h-4 w-4 text-primary" />
+				<h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">Generate Files</h2>
+			</div>
+
+			<div className="rounded-xl border border-border/50 bg-card p-4 sm:p-6">
+				{/* Info Banner */}
+				<div className="mb-5 flex items-center gap-3 rounded-lg border border-primary/10 bg-primary/5 p-3">
+					<Download className="h-4 w-4 shrink-0 text-primary" />
+					<span className="text-foreground text-sm">
+						AI-powered file generation based on your analysis
+					</span>
+				</div>
+
+				{error && (
+					<p className="mb-4 rounded-lg border border-destructive/10 bg-destructive/5 p-3 text-destructive text-sm">
+						{error}
+					</p>
+				)}
+
 				<div className="grid gap-4 sm:grid-cols-2">
 					{/* robots.txt */}
-					<div className="rounded-lg border border-border p-4">
-						<div className="flex items-start justify-between">
+					<div className="rounded-xl border border-border/50 bg-background p-4 transition-all duration-200 hover:border-primary/20">
+						<div className="mb-3 flex items-start justify-between">
 							<div>
 								<h4 className="font-medium text-foreground">robots.txt</h4>
-								<p className="mt-1 text-sm text-muted-foreground">
-									Tell AI crawlers they&apos;re welcome to index your site
+								<p className="mt-1 text-muted-foreground text-xs">
+									Crawler directives for your site
 								</p>
 							</div>
 							{aiIndexing.robots_txt.present ? (
-								<span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
-									Exists
+								<span className="flex items-center gap-1 text-primary text-xs">
+									<CheckCircle2 className="h-3 w-3" /> Exists
 								</span>
 							) : (
-								<span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-									Missing
-								</span>
+								<span className="text-muted-foreground text-xs">Missing</span>
 							)}
 						</div>
-						<div className="mt-3 text-xs text-muted-foreground">
-							<p className="font-medium text-foreground">What it does:</p>
-							<ul className="mt-1 list-inside list-disc space-y-0.5">
-								<li>Welcomes ChatGPT, Claude, Perplexity crawlers</li>
-								<li>Blocks aggressive/low-value bots</li>
-								<li>Points to your sitemap</li>
-							</ul>
+						
+						<ul className="mb-4 space-y-1 text-muted-foreground text-xs">
+							<li>• AI crawler permissions</li>
+							<li>• Path restrictions</li>
+							<li>• Sitemap declaration</li>
+						</ul>
+						
+						<div className="grid gap-2">
+							<button
+								type="button"
+								onClick={() => handleDownload("robots", "api")}
+								disabled={apiGenerating !== null || generating !== null}
+								className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground text-sm transition-all duration-200 hover:bg-primary/90 disabled:opacity-50"
+							>
+								<Download className="h-3.5 w-3.5" />
+								{apiGenerating === "robots" ? "Generating..." : "Generate with AI"}
+							</button>
+							<button
+								type="button"
+								onClick={() => handleDownload("robots", "local")}
+								disabled={generating !== null || apiGenerating !== null}
+								className="flex w-full items-center justify-center gap-2 rounded-lg border border-border/50 px-4 py-2 font-medium text-muted-foreground text-sm transition-colors hover:bg-muted/50 disabled:opacity-50"
+							>
+								<Zap className="h-3.5 w-3.5" />
+								{generating === "robots" ? "..." : "Quick template"}
+							</button>
 						</div>
-						<button
-							onClick={() => handleDownload("robots")}
-							disabled={generating !== null}
-							className="mt-4 w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-						>
-							{generating === "robots" ? "Generating..." : "Download robots.txt"}
-						</button>
 					</div>
 
 					{/* llms.txt */}
-					<div className="rounded-lg border border-border p-4">
-						<div className="flex items-start justify-between">
+					<div className="rounded-xl border border-border/50 bg-background p-4 transition-all duration-200 hover:border-primary/20">
+						<div className="mb-3 flex items-start justify-between">
 							<div>
 								<h4 className="font-medium text-foreground">llms.txt</h4>
-								<p className="mt-1 text-sm text-muted-foreground">
-									A guide for AI assistants to understand your brand
+								<p className="mt-1 text-muted-foreground text-xs">
+									AI assistant guide for your brand
 								</p>
 							</div>
 							{aiIndexing.llms_txt.present ? (
-								<span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
-									Exists
+								<span className="flex items-center gap-1 text-primary text-xs">
+									<CheckCircle2 className="h-3 w-3" /> Exists
 								</span>
 							) : (
-								<span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-									Missing
-								</span>
+								<span className="text-muted-foreground text-xs">Missing</span>
 							)}
 						</div>
-						<div className="mt-3 text-xs text-muted-foreground">
-							<p className="font-medium text-foreground">What it does:</p>
-							<ul className="mt-1 list-inside list-disc space-y-0.5">
-								<li>Tells AI what your brand is about</li>
-								<li>Lists your key services & expertise</li>
-								<li>Helps AI give accurate recommendations</li>
-							</ul>
+						
+						<ul className="mb-4 space-y-1 text-muted-foreground text-xs">
+							<li>• Site overview</li>
+							<li>• Key topics & keywords</li>
+							<li>• LLM permissions</li>
+						</ul>
+						
+						<div className="grid gap-2">
+							<button
+								type="button"
+								onClick={() => handleDownload("llms", "api")}
+								disabled={apiGenerating !== null || generating !== null}
+								className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground text-sm transition-all duration-200 hover:bg-primary/90 disabled:opacity-50"
+							>
+								<Download className="h-3.5 w-3.5" />
+								{apiGenerating === "llms" ? "Generating..." : "Generate with AI"}
+							</button>
+							<button
+								type="button"
+								onClick={() => handleDownload("llms", "local")}
+								disabled={generating !== null || apiGenerating !== null}
+								className="flex w-full items-center justify-center gap-2 rounded-lg border border-border/50 px-4 py-2 font-medium text-muted-foreground text-sm transition-colors hover:bg-muted/50 disabled:opacity-50"
+							>
+								<Zap className="h-3.5 w-3.5" />
+								{generating === "llms" ? "..." : "Quick template"}
+							</button>
 						</div>
-						<button
-							onClick={() => handleDownload("llms")}
-							disabled={generating !== null}
-							className="mt-4 w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-						>
-							{generating === "llms" ? "Generating..." : "Download llms.txt"}
-						</button>
 					</div>
 				</div>
 
 				{/* Installation Instructions */}
-				<div className="mt-4 rounded-lg bg-muted/50 p-4 text-sm">
-					<p className="font-medium text-foreground">How to install:</p>
-					<ol className="mt-2 list-inside list-decimal space-y-1 text-muted-foreground">
-						<li>Download the files above</li>
-						<li>Review and customize the content (especially llms.txt)</li>
-						<li>Upload to your website&apos;s root folder (e.g., yoursite.com/robots.txt)</li>
-						<li>Wait 24-48 hours for AI crawlers to discover the changes</li>
+				<div className="mt-5 border-border/50 border-t pt-4">
+					<p className="mb-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">Installation</p>
+					<ol className="space-y-1 text-muted-foreground text-xs">
+						<li>1. Generate and review the file content</li>
+						<li>2. Upload to your site root (e.g., yoursite.com/robots.txt)</li>
+						<li>3. Allow 24-48 hours for crawlers to discover changes</li>
 					</ol>
 				</div>
-			</CardContent>
-		</Card>
+			</div>
+		</section>
 	)
 }

@@ -664,23 +664,27 @@ class HTMLAnalyzer:
     
     def extract_text_content(self) -> str:
         """Extract main text content from page."""
-        # Remove script and style elements
-        for element in self.soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
+        # Create a fresh soup to avoid modifying the original
+        # (decompose() would destroy elements needed for other analyses like JSON-LD)
+        soup_copy = BeautifulSoup(str(self.soup), 'lxml')
+        
+        # Remove script and style elements from the copy
+        for element in soup_copy(['script', 'style', 'nav', 'header', 'footer', 'aside']):
             element.decompose()
         
         # Try to find main content area
         main_content = (
-            self.soup.find('main') or 
-            self.soup.find('article') or 
-            self.soup.find(id='content') or
-            self.soup.find(class_='content') or
-            self.soup.find('body')
+            soup_copy.find('main') or 
+            soup_copy.find('article') or 
+            soup_copy.find(id='content') or
+            soup_copy.find(class_='content') or
+            soup_copy.find('body')
         )
         
         if main_content:
             return main_content.get_text(separator=' ', strip=True)
         
-        return self.soup.get_text(separator=' ', strip=True)
+        return soup_copy.get_text(separator=' ', strip=True)
 
 
 # ============================================================================
