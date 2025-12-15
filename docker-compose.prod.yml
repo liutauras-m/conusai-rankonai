@@ -29,17 +29,13 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 5
-      resources:
-        limits:
-          cpus: "1"
-          memory: 512M
       labels:
         - traefik.enable=true
         - traefik.swarm.network=dokploy-network
-        # HTTP Router - redirect to HTTPS
+        # HTTP Router - redirect to HTTPS (use existing @file middleware)
         - traefik.http.routers.rankon.rule=Host(`rankon.cloud.conusai.com`)
         - traefik.http.routers.rankon.entrypoints=web
-        - traefik.http.routers.rankon.middlewares=redirect-to-https@swarm
+        - traefik.http.routers.rankon.middlewares=redirect-to-https@file
         # HTTPS Router
         - traefik.http.routers.rankon-secure.rule=Host(`rankon.cloud.conusai.com`)
         - traefik.http.routers.rankon-secure.entrypoints=websecure
@@ -48,9 +44,6 @@ services:
         - traefik.http.routers.rankon-secure.service=rankon
         # Service
         - traefik.http.services.rankon.loadbalancer.server.port=3000
-        # Redirect middleware
-        - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
-        - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
 
   # FastAPI Backend
   backend:
@@ -82,10 +75,6 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 5
-      resources:
-        limits:
-          cpus: "2"
-          memory: 1G
       labels:
         - traefik.enable=true
         - traefik.swarm.network=dokploy-network
@@ -120,10 +109,6 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 5
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 300M
 
   # TaskIQ Worker
   worker:
@@ -151,10 +136,6 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 5
-      resources:
-        limits:
-          cpus: "2"
-          memory: 1G
 
 networks:
   rankon:
