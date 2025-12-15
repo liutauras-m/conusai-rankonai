@@ -158,6 +158,7 @@ services:
 networks:
   rankon:
     driver: overlay
+    attachable: true
   traefik-public:
     external: true
 
