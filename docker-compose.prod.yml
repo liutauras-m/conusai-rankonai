@@ -3,20 +3,19 @@ version: "3.8"
 services:
   # Next.js Frontend
   frontend:
-    image: ghcr.io/liutauras-m/conusai-rankonai-frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/conusai/rankon-frontend:latest
     environment:
       - NODE_ENV=production
       - BACKEND_URL=http://backend:8000
       - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
       - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
-      - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST:-https://eu.i.posthog.com}
+      - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST}
     networks:
-      - app-network
-      - dokploy-network
+      - rankon
+      - traefik-public
     deploy:
-      mode: replicated
-      replicas: 2
+      replicas: 1
       resources:
         limits:
           cpus: "1"
@@ -25,59 +24,34 @@ services:
         condition: any
         delay: 5s
         max_attempts: 5
-      update_config:
-        parallelism: 1
-        delay: 10s
-        failure_action: rollback
-      rollback_config:
-        parallelism: 1
-        delay: 10s
       placement:
         constraints:
           - node.role == worker
       labels:
-        - "traefik.enable=true"
-        - "traefik.swarm.network=dokploy-network"
+        - traefik.enable=true
+        - traefik.swarm.network=traefik-public
         # HTTP Router - redirect to HTTPS
-        - "traefik.http.routers.rankonai.rule=Host(`rankonai.cloud.conusai.com`)"
-        - "traefik.http.routers.rankonai.entrypoints=web"
-        - "traefik.http.routers.rankonai.middlewares=redirect-to-https@swarm"
+        - traefik.http.routers.rankon.rule=Host(`rankon.cloud.conusai.com`)
+        - traefik.http.routers.rankon.entrypoints=web
+        - traefik.http.routers.rankon.middlewares=redirect-to-https@swarm
         # HTTPS Router
-        - "traefik.http.routers.rankonai-secure.rule=Host(`rankonai.cloud.conusai.com`)"
-        - "traefik.http.routers.rankonai-secure.entrypoints=websecure"
-        - "traefik.http.routers.rankonai-secure.tls=true"
-        - "traefik.http.routers.rankonai-secure.tls.certresolver=letsencrypt"
-        - "traefik.http.routers.rankonai-secure.service=rankonai"
-        # Service
-        - "traefik.http.services.rankonai.loadbalancer.server.port=3000"
-        # Middlewares - Rate Limiting (per IP)
-        - "traefik.http.middlewares.rankonai-ratelimit.ratelimit.average=100"
-        - "traefik.http.middlewares.rankonai-ratelimit.ratelimit.burst=50"
-        - "traefik.http.middlewares.rankonai-ratelimit.ratelimit.period=1m"
-        - "traefik.http.middlewares.rankonai-ratelimit.ratelimit.sourcecriterion.ipstrategy.depth=1"
-        # Middlewares - Redirect HTTP to HTTPS
-        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-        - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
-        # Middlewares - Security Headers
-        - "traefik.http.middlewares.rankonai-headers.headers.stsSeconds=31536000"
-        - "traefik.http.middlewares.rankonai-headers.headers.stsIncludeSubdomains=true"
-        - "traefik.http.middlewares.rankonai-headers.headers.frameDeny=true"
-        - "traefik.http.middlewares.rankonai-headers.headers.contentTypeNosniff=true"
-        - "traefik.http.middlewares.rankonai-headers.headers.browserXssFilter=true"
-        # Apply middlewares to HTTPS router
-        - "traefik.http.routers.rankonai-secure.middlewares=rankonai-ratelimit@swarm,rankonai-headers@swarm"
+        - traefik.http.routers.rankon-secure.rule=Host(`rankon.cloud.conusai.com`)
+        - traefik.http.routers.rankon-secure.entrypoints=websecure
+        - traefik.http.routers.rankon-secure.tls.certresolver=le
+        - traefik.http.services.rankon.loadbalancer.server.port=3000
+        # Redirect middleware
+        - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+        - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
-    depends_on:
-      - backend
 
-  # FastAPI Backend (SEO Analyzer)
+  # FastAPI Backend
   backend:
-    image: ghcr.io/liutauras-m/conusai-rankonai-backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/conusai/rankon-backend:latest
     environment:
       - REDIS_URL=redis://redis:6379
       - MAX_CONCURRENT_ANALYSES=5
@@ -88,10 +62,10 @@ services:
       - MISTRAL_API_KEY=${MISTRAL_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     networks:
-      - app-network
+      - rankon
+      - traefik-public
     deploy:
-      mode: replicated
-      replicas: 2
+      replicas: 1
       resources:
         limits:
           cpus: "2"
@@ -100,73 +74,38 @@ services:
         condition: any
         delay: 5s
         max_attempts: 5
-      update_config:
-        parallelism: 1
-        delay: 10s
-        failure_action: rollback
-      rollback_config:
-        parallelism: 1
-        delay: 10s
       placement:
         constraints:
           - node.role == worker
+      labels:
+        - traefik.enable=true
+        - traefik.swarm.network=traefik-public
+        # HTTPS Router for API
+        - traefik.http.routers.rankon-api.rule=Host(`rankon.cloud.conusai.com`) && PathPrefix(`/api`)
+        - traefik.http.routers.rankon-api.entrypoints=websecure
+        - traefik.http.routers.rankon-api.tls.certresolver=le
+        - traefik.http.services.rankon-api.loadbalancer.server.port=8000
+        # Rate limiting middleware
+        - traefik.http.middlewares.rankon-ratelimit.ratelimit.average=100
+        - traefik.http.middlewares.rankon-ratelimit.ratelimit.burst=50
+        - traefik.http.middlewares.rankon-ratelimit.ratelimit.period=1m
+        - traefik.http.routers.rankon-api.middlewares=rankon-ratelimit@swarm
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
-    depends_on:
-      - redis
 
-  # TaskIQ Worker for background job processing
-  worker:
-    image: ghcr.io/liutauras-m/conusai-rankonai-backend:${IMAGE_TAG:-latest}
-    command: taskiq worker tasks.taskiq_worker:broker --fs-discover
-    environment:
-      - PYTHONPATH=/app
-      - REDIS_URL=redis://redis:6379
-      - MAX_CONCURRENT_ANALYSES=5
-      - CACHE_TTL=3600
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - XAI_API_KEY=${XAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-    networks:
-      - app-network
-    deploy:
-      mode: replicated
-      replicas: 2
-      resources:
-        limits:
-          cpus: "1"
-          memory: 512M
-      restart_policy:
-        condition: any
-        delay: 5s
-        max_attempts: 5
-      update_config:
-        parallelism: 1
-        delay: 10s
-        failure_action: rollback
-      placement:
-        constraints:
-          - node.role == worker
-    depends_on:
-      - redis
-
-  # Redis for caching
+  # Redis
   redis:
     image: redis:alpine
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     networks:
-      - app-network
+      - rankon
     deploy:
-      mode: replicated
       replicas: 1
       resources:
         limits:
@@ -185,13 +124,42 @@ services:
       timeout: 10s
       retries: 3
 
+  # TaskIQ Worker
+  worker:
+    image: ghcr.io/conusai/rankon-backend:latest
+    command: taskiq worker tasks.taskiq_worker:broker --fs-discover
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379
+      - MAX_CONCURRENT_ANALYSES=5
+      - CACHE_TTL=3600
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    networks:
+      - rankon
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+      placement:
+        constraints:
+          - node.role == worker
+
 networks:
-  app-network:
+  rankon:
     driver: overlay
-    attachable: true
-  dokploy-network:
+  traefik-public:
     external: true
 
 volumes:
   redis_data:
-    driver: local
