@@ -32,6 +32,9 @@ services:
       rollback_config:
         parallelism: 1
         delay: 10s
+      placement:
+        constraints:
+          - node.role == worker
       labels:
         - "traefik.enable=true"
         - "traefik.docker.network=dokploy-network"
@@ -104,6 +107,9 @@ services:
       rollback_config:
         parallelism: 1
         delay: 10s
+      placement:
+        constraints:
+          - node.role == worker
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -134,7 +140,7 @@ services:
         max_attempts: 3
       placement:
         constraints:
-          - node.role == manager
+          - node.role == worker
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
