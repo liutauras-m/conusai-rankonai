@@ -127,7 +127,7 @@ services:
   # TaskIQ Worker
   worker:
     image: ghcr.io/liutauras-m/conusai-rankonai-backend:latest
-    command: taskiq worker tasks.taskiq_worker:broker --fs-discover
+    command: python -m taskiq worker tasks.taskiq_worker:broker --fs-discover
     environment:
       - PYTHONPATH=/app
       - REDIS_URL=redis://redis:6379
