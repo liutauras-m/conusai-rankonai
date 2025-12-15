@@ -14,43 +14,31 @@ services:
     networks:
       - rankon
       - dokploy-network
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          cpus: "1"
-          memory: 512M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-      placement:
-        constraints:
-          - node.role == worker
-      labels:
-        - traefik.enable=true
-        - traefik.swarm.network=dokploy-network
-        # HTTP Router - redirect to HTTPS
-        - traefik.http.routers.rankon.rule=Host(`rankon.cloud.conusai.com`)
-        - traefik.http.routers.rankon.entrypoints=web
-        - traefik.http.routers.rankon.middlewares=redirect-to-https@swarm
-        # HTTPS Router
-        - traefik.http.routers.rankon-secure.rule=Host(`rankon.cloud.conusai.com`)
-        - traefik.http.routers.rankon-secure.entrypoints=websecure
-        - traefik.http.routers.rankon-secure.tls=true
-        - traefik.http.routers.rankon-secure.tls.certresolver=letsencrypt
-        - traefik.http.routers.rankon-secure.service=rankon
-        # Service
-        - traefik.http.services.rankon.loadbalancer.server.port=3000
-        # Redirect middleware
-        - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
-        - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      # HTTP Router - redirect to HTTPS
+      - traefik.http.routers.rankon.rule=Host(`rankon.cloud.conusai.com`)
+      - traefik.http.routers.rankon.entrypoints=web
+      - traefik.http.routers.rankon.middlewares=redirect-to-https
+      # HTTPS Router
+      - traefik.http.routers.rankon-secure.rule=Host(`rankon.cloud.conusai.com`)
+      - traefik.http.routers.rankon-secure.entrypoints=websecure
+      - traefik.http.routers.rankon-secure.tls=true
+      - traefik.http.routers.rankon-secure.tls.certresolver=letsencrypt
+      - traefik.http.routers.rankon-secure.service=rankon
+      # Service
+      - traefik.http.services.rankon.loadbalancer.server.port=3000
+      # Redirect middleware
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
+    restart: unless-stopped
 
   # FastAPI Backend
   backend:
@@ -67,41 +55,29 @@ services:
     networks:
       - rankon
       - dokploy-network
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          cpus: "2"
-          memory: 1G
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-      placement:
-        constraints:
-          - node.role == worker
-      labels:
-        - traefik.enable=true
-        - traefik.swarm.network=dokploy-network
-        # HTTPS Router for API
-        - traefik.http.routers.rankon-api.rule=Host(`rankon.cloud.conusai.com`) && PathPrefix(`/api`)
-        - traefik.http.routers.rankon-api.entrypoints=websecure
-        - traefik.http.routers.rankon-api.tls=true
-        - traefik.http.routers.rankon-api.tls.certresolver=letsencrypt
-        - traefik.http.routers.rankon-api.service=rankon-api
-        # Service
-        - traefik.http.services.rankon-api.loadbalancer.server.port=8000
-        # Rate limiting middleware
-        - traefik.http.middlewares.rankon-ratelimit.ratelimit.average=100
-        - traefik.http.middlewares.rankon-ratelimit.ratelimit.burst=50
-        - traefik.http.middlewares.rankon-ratelimit.ratelimit.period=1m
-        - traefik.http.routers.rankon-api.middlewares=rankon-ratelimit@swarm
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      # HTTPS Router for API
+      - traefik.http.routers.rankon-api.rule=Host(`rankon.cloud.conusai.com`) && PathPrefix(`/api`)
+      - traefik.http.routers.rankon-api.entrypoints=websecure
+      - traefik.http.routers.rankon-api.tls=true
+      - traefik.http.routers.rankon-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.rankon-api.service=rankon-api
+      # Service
+      - traefik.http.services.rankon-api.loadbalancer.server.port=8000
+      # Rate limiting middleware
+      - traefik.http.middlewares.rankon-ratelimit.ratelimit.average=100
+      - traefik.http.middlewares.rankon-ratelimit.ratelimit.burst=50
+      - traefik.http.middlewares.rankon-ratelimit.ratelimit.period=1m
+      - traefik.http.routers.rankon-api.middlewares=rankon-ratelimit
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
+    restart: unless-stopped
 
   # Redis
   redis:
@@ -111,24 +87,12 @@ services:
       - redis_data:/data
     networks:
       - rankon
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 300M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-      placement:
-        constraints:
-          - node.role == worker
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
   # TaskIQ Worker
   worker:
@@ -147,24 +111,11 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     networks:
       - rankon
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          cpus: "2"
-          memory: 1G
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-      placement:
-        constraints:
-          - node.role == worker
+    restart: unless-stopped
 
 networks:
   rankon:
-    driver: overlay
-    attachable: true
+    driver: bridge
   dokploy-network:
     external: true
 
