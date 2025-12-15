@@ -13,7 +13,7 @@ services:
       - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST}
     networks:
       - rankon
-      - traefik-public
+      - dokploy-network
     deploy:
       replicas: 1
       resources:
@@ -29,7 +29,7 @@ services:
           - node.role == worker
       labels:
         - traefik.enable=true
-        - traefik.swarm.network=traefik-public
+        - traefik.docker.network=dokploy-network
         # HTTP Router - redirect to HTTPS
         - traefik.http.routers.rankon.rule=Host(`rankon.cloud.conusai.com`)
         - traefik.http.routers.rankon.entrypoints=web
@@ -63,7 +63,7 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     networks:
       - rankon
-      - traefik-public
+      - dokploy-network
     deploy:
       replicas: 1
       resources:
@@ -79,7 +79,7 @@ services:
           - node.role == worker
       labels:
         - traefik.enable=true
-        - traefik.swarm.network=traefik-public
+        - traefik.docker.network=dokploy-network
         # HTTPS Router for API
         - traefik.http.routers.rankon-api.rule=Host(`rankon.cloud.conusai.com`) && PathPrefix(`/api`)
         - traefik.http.routers.rankon-api.entrypoints=websecure
@@ -159,7 +159,7 @@ networks:
   rankon:
     driver: overlay
     attachable: true
-  traefik-public:
+  dokploy-network:
     external: true
 
 volumes:
