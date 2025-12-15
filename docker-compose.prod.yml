@@ -71,20 +71,7 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 5
-      labels:
-        - traefik.enable=true
-        - traefik.swarm.network=dokploy-network
-        # HTTPS Router for API
-        - traefik.http.routers.rankon-api.rule=Host(`rankon.cloud.conusai.com`) && PathPrefix(`/api`)
-        - traefik.http.routers.rankon-api.entrypoints=websecure
-        - traefik.http.routers.rankon-api.tls=true
-        - traefik.http.routers.rankon-api.tls.certresolver=letsencrypt
-        - traefik.http.routers.rankon-api.service=rankon-api
-        # StripPrefix middleware - removes /api before forwarding to backend
-        - traefik.http.middlewares.rankon-stripapi.stripprefix.prefixes=/api
-        - traefik.http.routers.rankon-api.middlewares=rankon-stripapi@swarm
-        # Service
-        - traefik.http.services.rankon-api.loadbalancer.server.port=8000
+      # NO traefik labels - backend is internal only (frontend proxies to it)
 
   # Redis
   redis:
