@@ -1,5 +1,5 @@
 services:
-  # Nginx reverse proxy with rate limiting
+  # Nginx reverse proxy
   nginx:
     image: nginx:alpine
     ports:
@@ -9,11 +9,6 @@ services:
     depends_on:
       - frontend
       - backend
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 128M
     restart: unless-stopped
 
   # Next.js Frontend
@@ -30,26 +25,15 @@ services:
       - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST:-https://eu.i.posthog.com}
     depends_on:
       - backend
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: 512M
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
     restart: unless-stopped
 
-  # FastAPI Backend (SEO Analyzer)
+  # FastAPI Backend
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"  # Expose for direct testing
+      - "8000:8000"
     environment:
       - REDIS_URL=redis://redis:6379
       - MAX_CONCURRENT_ANALYSES=5
@@ -61,39 +45,17 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     depends_on:
       - redis
-    deploy:
-      resources:
-        limits:
-          cpus: "2"
-          memory: 1G
-      replicas: 2  # Run 2 instances for load balancing
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
     restart: unless-stopped
 
-  # Redis for caching
+  # Redis
   redis:
     image: redis:alpine
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 300M
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     restart: unless-stopped
 
-  # TaskIQ Worker for background job processing
+  # TaskIQ Worker
   worker:
     build:
       context: ./backend
@@ -112,12 +74,6 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     depends_on:
       - redis
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: 512M
-      replicas: 2  # Run 2 workers for parallel processing
     restart: unless-stopped
 
 volumes:

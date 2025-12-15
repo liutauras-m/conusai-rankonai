@@ -56,29 +56,25 @@ type AnalysisReport = {
 }
 
 type InsightResponse = {
-  success: boolean
+  success?: boolean
   prompt?: string
   models?: string[]
-  result?: {
-    prompt?: string
-    responses?: Record<
-      string,
-      {
-        model_key?: string
-        model_name?: string
-        provider?: string
-        success?: boolean
-        response?: string
-        error?: string
-        latency_ms?: number
-        tokens_used?: number
-      }
-    >
-    total_time_ms?: number
-    models_queried?: number
-    models_successful?: number
-  }
-  meta?: Record<string, unknown>
+  responses?: Record<
+    string,
+    {
+      model_key?: string
+      model_name?: string
+      provider?: string
+      success?: boolean
+      response?: string
+      error?: string
+      latency_ms?: number
+      tokens_used?: number
+    }
+  >
+  total_time_ms?: number
+  models_queried?: number
+  models_successful?: number
   error?: string
   detail?: string
 }
@@ -114,6 +110,54 @@ type MarketingData = {
   targetKeywords: TargetKeyword[]
   socialPosts: SocialPost[]
   contentIdeas: string[]
+}
+
+type SignalsData = {
+  robots_txt?: {
+    present?: boolean
+    ai_bots_status?: Record<string, string>
+    sitemaps_declared?: string[]
+  }
+  llms_txt?: {
+    present?: boolean
+    content_preview?: string | null
+  }
+  sitemap_xml?: {
+    present?: boolean
+  }
+}
+
+type KeywordsData = {
+  primary?: string[]
+  secondary?: string[]
+  long_tail?: string[]
+  frequency?: Array<{ keyword: string; count: number }>
+}
+
+type WorkflowResultData = {
+  job_id?: string
+  url?: string
+  status?: string
+  cached?: boolean
+  timestamp?: string
+  scores?: {
+    overall?: number
+    technical?: number
+    on_page?: number
+    content?: number
+    structured_data?: number
+    ai_readiness?: number
+  }
+  overview?: AnalysisReport
+  insights?: InsightResponse
+  signals?: SignalsData
+  keywords?: KeywordsData
+  marketing?: MarketingData
+  ai_summary?: {
+    markdown?: string
+    structured?: Record<string, unknown>
+  }
+  error?: string
 }
 
 type ReportContextValue = {
@@ -158,6 +202,9 @@ type ReportContextValue = {
     keywords_frequency: Array<{ keyword: string; count: number }>
   }
   queryString: string
+  workflowData: WorkflowResultData | null
+  keywordsData: KeywordsData | null
+  signalsData: SignalsData | null
 }
 
 const ReportContext = createContext<ReportContextValue | null>(null)
@@ -168,8 +215,9 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   const queryUrl = searchParams.get("url") ?? ""
-  const captchaToken = searchParams.get("token") ?? ""
+  const jobId = searchParams.get("jobId") ?? ""
 
+  const [workflowData, setWorkflowData] = useState<WorkflowResultData | null>(null)
   const [analysis, setAnalysis] = useState<AnalysisReport | null>(null)
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
@@ -182,6 +230,8 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
   const [questionsLoading, setQuestionsLoading] = useState(false)
   const [marketingData, setMarketingData] = useState<MarketingData | null>(null)
   const [marketingLoading, setMarketingLoading] = useState(false)
+  const [keywordsData, setKeywordsData] = useState<KeywordsData | null>(null)
+  const [signalsData, setSignalsData] = useState<SignalsData | null>(null)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -213,6 +263,81 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
     if (!mounted || preferences.length === 0) return
     window.localStorage.setItem("rank-on-ai-preferences", JSON.stringify(preferences))
   }, [preferences, mounted])
+
+  // Fetch workflow result when jobId is available
+  useEffect(() => {
+    if (!jobId) {
+      // Reset state if no jobId
+      setWorkflowData(null)
+      setAnalysis(null)
+      setStatus("idle")
+      setError(null)
+      setInsights({ status: "idle" })
+      setMarketingData(null)
+      setKeywordsData(null)
+      setSignalsData(null)
+      return
+    }
+
+    const controller = new AbortController()
+    setStatus("loading")
+    setError(null)
+
+    fetch(`/api/workflow?jobId=${jobId}&result=true`, {
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          throw new Error(body?.error ?? "Failed to load analysis results")
+        }
+        return res.json()
+      })
+      .then((data: WorkflowResultData) => {
+        setWorkflowData(data)
+        
+        // Set overview/analysis data
+        const overviewData = data.overview || {}
+        setAnalysis({
+          ...overviewData,
+          url: data.url || overviewData.url,
+          timestamp: data.timestamp || overviewData.timestamp,
+          scores: data.scores || overviewData.scores,
+        })
+        
+        // Set insights from workflow
+        if (data.insights) {
+          setInsights({ 
+            status: "success", 
+            data: data.insights 
+          })
+        }
+        
+        // Set signals from workflow
+        if (data.signals) {
+          setSignalsData(data.signals)
+        }
+        
+        // Set keywords from workflow
+        if (data.keywords) {
+          setKeywordsData(data.keywords)
+        }
+        
+        // Set marketing from workflow
+        if (data.marketing) {
+          setMarketingData(data.marketing)
+        }
+        
+        setStatus("success")
+      })
+      .catch((fetchError) => {
+        if (controller.signal.aborted) return
+        setStatus("error")
+        setError(fetchError instanceof Error ? fetchError.message : "Analysis failed")
+      })
+
+    return () => controller.abort()
+  }, [jobId])
 
   // Fetch AI-generated preference options when analysis is ready
   useEffect(() => {
@@ -296,130 +421,33 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
     return () => controller.abort()
   }, [analysis])
 
-  // Fetch AI-generated marketing content when analysis is ready
-  useEffect(() => {
-    if (!analysis) {
-      setMarketingData(null)
-      return
-    }
-
-    const controller = new AbortController()
-    setMarketingLoading(true)
-
-    fetch("/api/generate-marketing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analysis }),
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to generate marketing content")
-        return res.json()
-      })
-      .then((payload) => {
-        if (payload.success && payload.data) {
-          setMarketingData(payload.data)
-        }
-      })
-      .catch((err) => {
-        if (!controller.signal.aborted) {
-          console.error("Marketing generation error:", err)
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setMarketingLoading(false)
-        }
-      })
-
-    return () => controller.abort()
-  }, [analysis])
-
-  useEffect(() => {
-    if (!queryUrl) {
-      setAnalysis(null)
-      setStatus("idle")
-      setError(null)
-      return
-    }
-
-    const controller = new AbortController()
-    setStatus("loading")
-    setError(null)
-
-    fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: queryUrl, captchaToken }),
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body?.error ?? "AI analysis failed")
-        }
-        return res.json()
-      })
-      .then((payload) => {
-        // Handle both nested (from backend via nginx) and flat (from frontend API) responses
-        const analysisData = payload.data ?? payload
-        setAnalysis(analysisData)
-        setStatus("success")
-      })
-      .catch((fetchError) => {
-        if (controller.signal.aborted) return
-        setStatus("error")
-        setError(fetchError instanceof Error ? fetchError.message : "Analysis failed")
-      })
-
-    return () => controller.abort()
-  }, [queryUrl, captchaToken])
-
-  useEffect(() => {
-    const prompt = analysis?.llm_context?.prompt_for_improvement
-    if (!prompt) {
-      setInsights({ status: "idle" })
-      return
-    }
-
-    const controller = new AbortController()
-    setInsights({ status: "loading" })
-
-    fetch("/api/insights", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body?.error ?? "AI insight generation failed")
-        }
-        return res.json()
-      })
-      .then((payload: InsightResponse) => {
-        setInsights({ status: "success", data: payload })
-      })
-      .catch((insightError) => {
-        if (controller.signal.aborted) return
-        setInsights({ status: "error", error: insightError instanceof Error ? insightError.message : "Insight failed" })
-      })
-
-    return () => controller.abort()
-  }, [analysis?.llm_context?.prompt_for_improvement])
-
   const handleRun = useCallback(() => {
     if (!urlInput) return
     const normalized = urlInput.startsWith("http") ? urlInput : `https://${urlInput}`
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("url", normalized)
-    if (captchaToken) params.set("token", captchaToken)
-    const target = `${pathname}?${params.toString()}` as Route
-    router.push(target)
-  }, [urlInput, searchParams, pathname, router, captchaToken])
+    // Navigate back to home page to start new analysis
+    router.push(`/?url=${encodeURIComponent(normalized)}`)
+  }, [urlInput, router])
 
   const aiIndexing = useMemo(() => {
+    // First try to get from signals data (from workflow)
+    if (signalsData) {
+      return {
+        robots_txt: {
+          present: signalsData.robots_txt?.present ?? false,
+          ai_bots_status: signalsData.robots_txt?.ai_bots_status ?? {},
+          sitemaps_declared: signalsData.robots_txt?.sitemaps_declared ?? [],
+        },
+        llms_txt: {
+          present: signalsData.llms_txt?.present ?? false,
+          content_preview: signalsData.llms_txt?.content_preview ?? null,
+        },
+        sitemap_xml: {
+          present: signalsData.sitemap_xml?.present ?? false,
+        },
+      }
+    }
+    
+    // Fall back to analysis data
     const source = analysis?.ai_indexing
     return {
       robots_txt: {
@@ -435,7 +463,7 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
         present: source?.sitemap_xml?.present ?? false,
       },
     }
-  }, [analysis?.ai_indexing])
+  }, [analysis?.ai_indexing, signalsData])
 
   const bestFeatures = useMemo(() => {
     const scoreEntries = analysis?.scores
@@ -460,13 +488,14 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
   }, [analysis?.llm_context?.key_metrics])
 
   const formattedTimestamp = useMemo(() => {
-    if (!analysis?.timestamp) return "pending"
-    return new Date(analysis.timestamp).toLocaleString()
-  }, [analysis?.timestamp])
+    const ts = workflowData?.timestamp || analysis?.timestamp
+    if (!ts) return "pending"
+    return new Date(ts).toLocaleString()
+  }, [workflowData?.timestamp, analysis?.timestamp])
 
   const insightsResponses = useMemo(() => {
-    if (insights.status !== "success" || !insights.data?.result?.responses) return []
-    return Object.entries(insights.data.result.responses).map(([model, response]) => ({
+    if (insights.status !== "success" || !insights.data?.responses) return []
+    return Object.entries(insights.data.responses).map(([model, response]) => ({
       key: model,
       name: response.model_name ?? model,
       provider: response.provider ?? "AI",
@@ -493,9 +522,9 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
     if (queryUrl) params.set("url", queryUrl)
-    if (captchaToken) params.set("token", captchaToken)
+    if (jobId) params.set("jobId", jobId)
     return params.toString()
-  }, [queryUrl, captchaToken])
+  }, [queryUrl, jobId])
 
   const value: ReportContextValue = {
     analysis,
@@ -522,6 +551,9 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
     metadataForFiles,
     contentForFiles,
     queryString,
+    workflowData,
+    keywordsData,
+    signalsData,
   }
 
   return <ReportContext.Provider value={value}>{children}</ReportContext.Provider>
