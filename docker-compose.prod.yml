@@ -12,7 +12,6 @@ services:
       - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
       - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST}
     networks:
-      - rankon
       - dokploy-network
     labels:
       - traefik.enable=true
@@ -53,7 +52,6 @@ services:
       - MISTRAL_API_KEY=${MISTRAL_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     networks:
-      - rankon
       - dokploy-network
     labels:
       - traefik.enable=true
@@ -66,11 +64,6 @@ services:
       - traefik.http.routers.rankon-api.service=rankon-api
       # Service
       - traefik.http.services.rankon-api.loadbalancer.server.port=8000
-      # Rate limiting middleware
-      - traefik.http.middlewares.rankon-ratelimit.ratelimit.average=100
-      - traefik.http.middlewares.rankon-ratelimit.ratelimit.burst=50
-      - traefik.http.middlewares.rankon-ratelimit.ratelimit.period=1m
-      - traefik.http.routers.rankon-api.middlewares=rankon-ratelimit
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -86,7 +79,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - rankon
+      - dokploy-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -110,12 +103,10 @@ services:
       - MISTRAL_API_KEY=${MISTRAL_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     networks:
-      - rankon
+      - dokploy-network
     restart: unless-stopped
 
 networks:
-  rankon:
-    driver: bridge
   dokploy-network:
     external: true
 
