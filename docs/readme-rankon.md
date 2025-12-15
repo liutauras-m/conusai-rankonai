@@ -1,3 +1,140 @@
+# RankOnAI Docker Compose Fixes for Swarm Deployment
+
+## Issues Found & Fixes
+
+### 1. ❌ Middleware Reference Mismatch
+
+**Problem:** Traefik labels reference middlewares with `@docker` suffix, but in Swarm mode they need `@swarm`.
+
+**Original (broken):**
+```yaml
+- "traefik.http.routers.rankonai-secure.middlewares=rankonai-ratelimit@docker,rankonai-headers@docker"
+- "traefik.http.routers.rankonai.middlewares=redirect-to-https@docker"
+```
+
+**Fixed:**
+```yaml
+- "traefik.http.routers.rankonai-secure.middlewares=rankonai-ratelimit@swarm,rankonai-headers@swarm"
+- "traefik.http.routers.rankonai.middlewares=redirect-to-https@swarm"
+```
+
+---
+
+### 2. ❌ Rate Limit Too Aggressive
+
+**Problem:** Rate limit of 5 requests/hour is too low and blocks normal usage.
+
+**Original (broken):**
+```yaml
+- "traefik.http.middlewares.rankonai-ratelimit.ratelimit.average=5"
+- "traefik.http.middlewares.rankonai-ratelimit.ratelimit.burst=2"
+- "traefik.http.middlewares.rankonai-ratelimit.ratelimit.period=1h"
+```
+
+**Fixed:**
+```yaml
+- "traefik.http.middlewares.rankonai-ratelimit.ratelimit.average=100"
+- "traefik.http.middlewares.rankonai-ratelimit.ratelimit.burst=50"
+- "traefik.http.middlewares.rankonai-ratelimit.ratelimit.period=1m"
+```
+
+---
+
+### 3. ❌ Healthcheck Causing Container Exits
+
+**Problem:** The healthcheck uses `curl` but the frontend image only has `wget` installed (Alpine-based). This causes healthcheck failures, and combined with `restart_policy: condition: on-failure`, containers exit cleanly (code 0) and don't restart.
+
+**Critical finding:** The frontend image does NOT have `curl` - only `wget` is available!
+
+**Original (broken - curl not available):**
+```yaml
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:3000"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
+```
+
+**Options to fix:**
+
+**Option A - Use wget (RECOMMENDED - it's available in the image):**
+```yaml
+healthcheck:
+  test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 60s
+```
+
+**Option B - Disable healthcheck:**
+```yaml
+healthcheck:
+  test: ["CMD", "true"]
+  interval: 30s
+```
+
+**Option C - Disable via CLI (for running services):**
+```bash
+docker service update --no-healthcheck tools-conusairankonai-0jfhgi_frontend
+```
+
+---
+
+### 4. ❌ Traefik Network Label (Swarm Mode)
+
+**Problem:** Using `traefik.docker.network` which is for Docker provider, but in Swarm mode should use `traefik.swarm.network`.
+
+**Original (may cause issues):**
+```yaml
+- "traefik.docker.network=dokploy-network"
+```
+
+**Fixed:**
+```yaml
+- "traefik.swarm.network=dokploy-network"
+```
+
+---
+
+### 5. ⚠️ Private Registry Authentication
+
+**Problem:** Worker nodes need to authenticate to `ghcr.io` to pull images.
+
+**Solution:** Either:
+
+1. **Pre-pull images on all nodes** before deploying:
+   ```bash
+   # On each node
+   echo "YOUR_GITHUB_PAT" | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+   docker pull ghcr.io/liutauras-m/conusai-rankonai-frontend:latest
+   docker pull ghcr.io/liutauras-m/conusai-rankonai-backend:latest
+   ```
+
+2. **Use `--with-registry-auth` when deploying:**
+   ```bash
+   docker stack deploy --with-registry-auth -c docker-compose.yml rankonai
+   ```
+
+3. **Configure Dokploy registry** and ensure it's used during compose deployment.
+
+---
+
+### 6. ⚠️ Image Architecture
+
+**Problem:** Images must be built for `linux/amd64` (server architecture), not `arm64` (Apple Silicon).
+
+**Fix in CI/CD:**
+```bash
+docker buildx build --platform linux/amd64 -t ghcr.io/liutauras-m/conusai-rankonai-frontend:latest --push .
+```
+
+---
+
+## Updated Docker Compose (Fixed)
+
+```yaml
 version: "3.8"
 
 services:
@@ -22,7 +159,7 @@ services:
           cpus: "1"
           memory: 512M
       restart_policy:
-        condition: any
+        condition: any  # Changed from on-failure to ensure restarts
         delay: 5s
         max_attempts: 5
       update_config:
@@ -32,9 +169,6 @@ services:
       rollback_config:
         parallelism: 1
         delay: 10s
-      placement:
-        constraints:
-          - node.role == worker
       labels:
         - "traefik.enable=true"
         - "traefik.swarm.network=dokploy-network"
@@ -50,7 +184,7 @@ services:
         - "traefik.http.routers.rankonai-secure.service=rankonai"
         # Service
         - "traefik.http.services.rankonai.loadbalancer.server.port=3000"
-        # Middlewares - Rate Limiting (per IP)
+        # Middlewares - Rate Limiting (more reasonable limits)
         - "traefik.http.middlewares.rankonai-ratelimit.ratelimit.average=100"
         - "traefik.http.middlewares.rankonai-ratelimit.ratelimit.burst=50"
         - "traefik.http.middlewares.rankonai-ratelimit.ratelimit.period=1m"
@@ -64,7 +198,7 @@ services:
         - "traefik.http.middlewares.rankonai-headers.headers.frameDeny=true"
         - "traefik.http.middlewares.rankonai-headers.headers.contentTypeNosniff=true"
         - "traefik.http.middlewares.rankonai-headers.headers.browserXssFilter=true"
-        # Apply middlewares to HTTPS router
+        # Apply middlewares to HTTPS router (FIXED: @swarm instead of @docker)
         - "traefik.http.routers.rankonai-secure.middlewares=rankonai-ratelimit@swarm,rankonai-headers@swarm"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
@@ -97,7 +231,7 @@ services:
           cpus: "2"
           memory: 1G
       restart_policy:
-        condition: any
+        condition: any  # Changed from on-failure
         delay: 5s
         max_attempts: 5
       update_config:
@@ -107,9 +241,6 @@ services:
       rollback_config:
         parallelism: 1
         delay: 10s
-      placement:
-        constraints:
-          - node.role == worker
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -137,10 +268,10 @@ services:
       restart_policy:
         condition: any
         delay: 5s
-        max_attempts: 5
+        max_attempts: 3
       placement:
         constraints:
-          - node.role == worker
+          - node.role == worker  # Run on worker node
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -157,3 +288,19 @@ networks:
 volumes:
   redis_data:
     driver: local
+```
+
+---
+
+## Summary of Changes
+
+| Issue | Original | Fixed |
+|-------|----------|-------|
+| Middleware suffix | `@docker` | `@swarm` |
+| Traefik network label | `traefik.docker.network` | `traefik.swarm.network` |
+| Rate limit average | 5/hour | 100/minute |
+| Rate limit burst | 2 | 50 |
+| Restart policy | `on-failure` | `any` |
+| Healthcheck retries | 3 | 5 |
+| Start period | 40s | 60s |
+| Frontend healthcheck | `curl` (not available) | `wget` (available in image) |
