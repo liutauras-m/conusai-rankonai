@@ -21,7 +21,7 @@ services:
           cpus: "1"
           memory: 512M
       restart_policy:
-        condition: any
+        condition: on-failure
         delay: 5s
         max_attempts: 5
       placement:
@@ -71,7 +71,7 @@ services:
           cpus: "2"
           memory: 1G
       restart_policy:
-        condition: any
+        condition: on-failure
         delay: 5s
         max_attempts: 5
       placement:
@@ -112,7 +112,7 @@ services:
           cpus: "0.5"
           memory: 300M
       restart_policy:
-        condition: any
+        condition: on-failure
         delay: 5s
         max_attempts: 5
       placement:
@@ -148,7 +148,7 @@ services:
           cpus: "2"
           memory: 1G
       restart_policy:
-        condition: any
+        condition: on-failure
         delay: 5s
         max_attempts: 5
       placement:
