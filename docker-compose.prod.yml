@@ -1,0 +1,153 @@
+version: "3.8"
+
+services:
+  # Next.js Frontend
+  frontend:
+    image: ghcr.io/liutauras-m/conusai-rankonai-frontend:${IMAGE_TAG:-latest}
+    environment:
+      - NODE_ENV=production
+      - BACKEND_URL=http://backend:8000
+      - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+      - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
+      - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
+      - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST:-https://eu.i.posthog.com}
+    networks:
+      - app-network
+      - dokploy-network
+    deploy:
+      mode: replicated
+      replicas: 2
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=dokploy-network"
+        # HTTP Router - redirect to HTTPS
+        - "traefik.http.routers.rankonai.rule=Host(`rankonai.cloud.conusai.com`)"
+        - "traefik.http.routers.rankonai.entrypoints=web"
+        - "traefik.http.routers.rankonai.middlewares=redirect-to-https@docker"
+        # HTTPS Router
+        - "traefik.http.routers.rankonai-secure.rule=Host(`rankonai.cloud.conusai.com`)"
+        - "traefik.http.routers.rankonai-secure.entrypoints=websecure"
+        - "traefik.http.routers.rankonai-secure.tls=true"
+        - "traefik.http.routers.rankonai-secure.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.rankonai-secure.service=rankonai"
+        # Service
+        - "traefik.http.services.rankonai.loadbalancer.server.port=3000"
+        # Middlewares - Rate Limiting (per IP)
+        - "traefik.http.middlewares.rankonai-ratelimit.ratelimit.average=5"
+        - "traefik.http.middlewares.rankonai-ratelimit.ratelimit.burst=2"
+        - "traefik.http.middlewares.rankonai-ratelimit.ratelimit.period=1h"
+        - "traefik.http.middlewares.rankonai-ratelimit.ratelimit.sourcecriterion.ipstrategy.depth=1"
+        # Middlewares - Redirect HTTP to HTTPS
+        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+        # Middlewares - Security Headers
+        - "traefik.http.middlewares.rankonai-headers.headers.stsSeconds=31536000"
+        - "traefik.http.middlewares.rankonai-headers.headers.stsIncludeSubdomains=true"
+        - "traefik.http.middlewares.rankonai-headers.headers.frameDeny=true"
+        - "traefik.http.middlewares.rankonai-headers.headers.contentTypeNosniff=true"
+        - "traefik.http.middlewares.rankonai-headers.headers.browserXssFilter=true"
+        # Apply middlewares to HTTPS router
+        - "traefik.http.routers.rankonai-secure.middlewares=rankonai-ratelimit@docker,rankonai-headers@docker"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - backend
+
+  # FastAPI Backend (SEO Analyzer)
+  backend:
+    image: ghcr.io/liutauras-m/conusai-rankonai-backend:${IMAGE_TAG:-latest}
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - MAX_CONCURRENT_ANALYSES=5
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    networks:
+      - app-network
+    deploy:
+      mode: replicated
+      replicas: 2
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      - redis
+
+  # Redis for caching
+  redis:
+    image: redis:alpine
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 300M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      placement:
+        constraints:
+          - node.role == manager
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  app-network:
+    driver: overlay
+    attachable: true
+  dokploy-network:
+    external: true
+
+volumes:
+  redis_data:
+    driver: local

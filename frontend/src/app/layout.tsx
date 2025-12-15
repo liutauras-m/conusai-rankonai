@@ -26,9 +26,51 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
 	title: "Rank on AI Search - Check Your AI Visibility",
 	description: "See if ChatGPT, Perplexity, Claude and other AI assistants can find and recommend your brand. Get your AI visibility score and optimize for AI search.",
+	keywords: ["AI search", "AI visibility", "ChatGPT ranking", "Perplexity SEO", "Claude optimization", "AI recommendations", "brand visibility", "AI SEO", "LLM optimization"],
+	authors: [{ name: "Rank on AI" }],
+	creator: "Rank on AI",
+	publisher: "Rank on AI",
+	metadataBase: new URL("https://rankonai.com"),
+	alternates: {
+		canonical: "/",
+	},
 	icons: {
 		icon: "/favicon.png",
 		apple: "/favicon.png",
+	},
+	openGraph: {
+		type: "website",
+		locale: "en_US",
+		url: "https://rankonai.com",
+		siteName: "Rank on AI",
+		title: "Rank on AI Search - Check Your AI Visibility",
+		description: "See if ChatGPT, Perplexity, Claude and other AI assistants can find and recommend your brand. Get your AI visibility score and optimize for AI search.",
+		images: [
+			{
+				url: "/social.png",
+				width: 1200,
+				height: 630,
+				alt: "Rank on AI - Check Your AI Visibility Score",
+			},
+		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Rank on AI Search - Check Your AI Visibility",
+		description: "See if ChatGPT, Perplexity, Claude and other AI assistants can find and recommend your brand. Get your AI visibility score.",
+		images: ["/social.png"],
+		creator: "@rankonai",
+	},
+	robots: {
+		index: true,
+		follow: true,
+		googleBot: {
+			index: true,
+			follow: true,
+			"max-video-preview": -1,
+			"max-image-preview": "large",
+			"max-snippet": -1,
+		},
 	},
 }
 
