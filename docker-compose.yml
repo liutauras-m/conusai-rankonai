@@ -26,6 +26,8 @@ services:
       - BACKEND_URL=http://backend:8000
       - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
+      - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
+      - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST:-https://eu.i.posthog.com}
     depends_on:
       - backend
     deploy:
@@ -33,6 +35,12 @@ services:
         limits:
           cpus: "1"
           memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
 
   # FastAPI Backend (SEO Analyzer)
@@ -57,6 +65,12 @@ services:
           cpus: "2"
           memory: 1G
       replicas: 2  # Run 2 instances for load balancing
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
 
   # Redis for caching
@@ -70,6 +84,11 @@ services:
         limits:
           cpus: "0.5"
           memory: 300M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
 
 volumes:
