@@ -19,10 +19,9 @@ import {
   Search,
   MessageSquare,
   Check,
-  Clock,
   AlertCircle,
   ArrowRight,
-  Info,
+  Share2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -39,68 +38,14 @@ const AI_PLATFORMS = [
   { name: "Mistral", logo: "/logos/platforms/mistral.png" },
 ]
 
-// Workflow step definitions with clear explanations
+// Simplified workflow steps
 const WORKFLOW_STEPS = [
-  {
-    id: "overview",
-    name: "SEO Analysis",
-    icon: Search,
-    description: "Technical SEO health check",
-    definition: "Comprehensive analysis of your website's technical SEO elements including meta tags, headings, structured data, and crawlability.",
-    metrics: [
-      { name: "Technical Score", desc: "Server response, HTTPS, mobile-friendliness" },
-      { name: "On-Page Score", desc: "Meta tags, headings, internal linking" },
-      { name: "Content Score", desc: "Word count, readability, keyword usage" },
-    ],
-  },
-  {
-    id: "insights",
-    name: "AI Insights",
-    icon: Brain,
-    description: "Multi-LLM analysis",
-    definition: "We query multiple AI models (GPT-4, Grok) to understand how AI assistants interpret and recommend your brand.",
-    metrics: [
-      { name: "Brand Recognition", desc: "How well AI identifies your brand" },
-      { name: "Context Accuracy", desc: "Quality of AI-generated descriptions" },
-      { name: "Recommendation Fit", desc: "Relevance in AI suggestions" },
-    ],
-  },
-  {
-    id: "signals",
-    name: "AI Signals",
-    icon: TrendingUp,
-    description: "Visibility indicators",
-    definition: "Detection of signals that help AI crawlers discover and index your content, including robots.txt, llms.txt, and sitemap configurations.",
-    metrics: [
-      { name: "Crawl Access", desc: "AI bot permissions in robots.txt" },
-      { name: "LLMs.txt", desc: "Dedicated AI instruction file" },
-      { name: "Sitemap", desc: "XML sitemap for content discovery" },
-    ],
-  },
-  {
-    id: "keywords",
-    name: "Keywords",
-    icon: Target,
-    description: "Strategic keywords",
-    definition: "Extraction and analysis of keywords that AI models associate with your brand and industry.",
-    metrics: [
-      { name: "Primary Keywords", desc: "Main terms AI associates with you" },
-      { name: "Long-tail Phrases", desc: "Specific queries triggering mentions" },
-      { name: "Competitor Terms", desc: "Keywords where competitors rank" },
-    ],
-  },
-  {
-    id: "marketing",
-    name: "Marketing",
-    icon: MessageSquare,
-    description: "Content strategy",
-    definition: "AI-generated marketing recommendations to improve your visibility across AI platforms and search engines.",
-    metrics: [
-      { name: "Content Ideas", desc: "Topics to increase AI mentions" },
-      { name: "Social Strategy", desc: "Platform-specific recommendations" },
-      { name: "Optimization Tips", desc: "Quick wins for better rankings" },
-    ],
-  },
+  { id: "overview", name: "SEO Analysis", icon: Search },
+  { id: "insights", name: "AI Insights", icon: Brain },
+  { id: "signals", name: "AI Signals", icon: TrendingUp },
+  { id: "keywords", name: "Keywords", icon: Target },
+  { id: "marketing", name: "Marketing", icon: MessageSquare },
+  { id: "social", name: "Social", icon: Share2 },
 ]
 
 type WorkflowStatus = "idle" | "starting" | "pending" | "running" | "completed" | "failed"
@@ -116,11 +61,8 @@ interface WorkflowState {
 
 export default function Home() {
   const [url, setUrl] = useState("")
-  const [brand, setBrand] = useState("")
-  const [inputType, setInputType] = useState<"url" | "brand">("url")
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
-  const [showMetricInfo, setShowMetricInfo] = useState<string | null>(null)
   
   const [workflow, setWorkflow] = useState<WorkflowState>({
     jobId: null,
@@ -183,11 +125,9 @@ export default function Home() {
         
         // Small delay for UX before navigation
         setTimeout(() => {
-          const params = new URLSearchParams({ jobId })
-          if (inputType === "url") params.set("url", url.trim())
-          else params.set("brand", brand.trim())
+          const params = new URLSearchParams({ jobId, url: url.trim() })
           router.push(`/report/overview?${params.toString()}`)
-        }, 800)
+        }, 500)
       }
       
       // If failed, stop polling
@@ -203,27 +143,21 @@ export default function Home() {
       }
       console.error("Polling error:", error)
     }
-  }, [router, url, brand, inputType])
+  }, [router, url])
 
   const startWorkflow = async () => {
     const trimmedUrl = url.trim()
-    const trimmedBrand = brand.trim()
-
-    // Validate input presence depending on type
-    if (inputType === "url" && !trimmedUrl) return
-    if (inputType === "brand" && !trimmedBrand) return
+    if (!trimmedUrl) return
 
     if (TURNSTILE_SITE_KEY && !captchaToken) {
       setWorkflow(prev => ({ ...prev, error: "Please complete the verification" }))
       return
     }
 
-    // Normalize URL when using URL mode
+    // Normalize URL
     let normalizedUrl = trimmedUrl
-    if (inputType === "url") {
-      if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
-        normalizedUrl = `https://${normalizedUrl}`
-      }
+    if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
+      normalizedUrl = `https://${normalizedUrl}`
     }
 
     setWorkflow({
@@ -236,14 +170,10 @@ export default function Home() {
     })
 
     try {
-      const body: Record<string, unknown> = { captchaToken }
-      if (inputType === "url") body.url = normalizedUrl
-      else body.brand = trimmedBrand
-
       const response = await fetch("/api/workflow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ url: normalizedUrl, captchaToken }),
       })
 
       if (!response.ok) {
@@ -262,9 +192,7 @@ export default function Home() {
 
       // If cached, navigate immediately
       if (data.cached && data.status === "completed") {
-        const params = new URLSearchParams({ jobId: data.job_id })
-        if (inputType === "url") params.set("url", normalizedUrl)
-        else params.set("brand", trimmedBrand)
+        const params = new URLSearchParams({ jobId: data.job_id, url: normalizedUrl })
         router.push(`/report/overview?${params.toString()}`)
         return
       }
@@ -332,13 +260,13 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <Image
             src="/favicon.png"
-            alt="Rank on AI Search"
+            alt="Rank on AI"
             width={32}
             height={32}
             className="transition-transform hover:scale-110"
           />
           <span className="hidden font-medium text-foreground sm:inline">
-            Rank on AI Search
+            Rank on AI
           </span>
         </div>
         <ThemeToggle />
@@ -411,123 +339,63 @@ export default function Home() {
           </div>
         )}
 
-        {/* Analysis Progress View */}
+        {/* Minimalistic Analysis Progress */}
         {isAnalyzing && (
-          <div className="w-full max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="rounded-2xl border border-border/50 bg-card/90 p-8 shadow-2xl backdrop-blur-sm">
-              {/* Header */}
-              <div className="mb-8 text-center">
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="font-medium text-primary text-sm">
-                    Analyzing {inputType === "url" ? (url || "website") : (brand || "brand")}
-                  </span>
-                </div>
-                <h2 className="font-bold text-2xl text-foreground">
-                  AI Visibility Analysis
-                </h2>
-                <p className="mt-2 text-muted-foreground">
-                  We're checking how AI assistants perceive your brand
-                </p>
+          <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="rounded-2xl border border-border/50 bg-card/90 p-8 shadow-xl backdrop-blur-sm">
+              <div className="mb-6 text-center">
+                <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-primary" />
+                <h2 className="font-semibold text-foreground text-lg">Analyzing {url || "website"}</h2>
+                <p className="mt-1 text-muted-foreground text-sm">This may take a moment...</p>
               </div>
 
               {/* Progress Bar */}
-              <div className="mb-8">
-                <div className="mb-2 flex items-center justify-between text-sm">
+              <div className="mb-6">
+                <div className="mb-2 flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Progress</span>
                   <span className="font-medium text-foreground">{workflow.progress}%</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-500"
+                    className="h-full rounded-full bg-primary transition-all duration-500"
                     style={{ width: `${workflow.progress}%` }}
                   />
                 </div>
               </div>
 
-              {/* Steps */}
-              <div className="space-y-3">
+              {/* Minimalistic Steps */}
+              <div className="space-y-2">
                 {WORKFLOW_STEPS.map((step) => {
                   const stepStatus = getStepStatus(step.id)
                   const Icon = step.icon
-                  
                   return (
-                    <div
-                      key={step.id}
-                      className={cn(
-                        "group relative rounded-xl border p-4 transition-all duration-300",
-                        stepStatus === "completed" && "border-green-500/30 bg-green-500/5",
-                        stepStatus === "running" && "border-primary/50 bg-primary/5 shadow-lg shadow-primary/10",
-                        stepStatus === "pending" && "border-border/50 bg-muted/30 opacity-60"
-                      )}
-                    >
-                      <div className="flex items-center gap-4">
-                        {/* Status Icon */}
-                        <div
-                          className={cn(
-                            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all",
-                            stepStatus === "completed" && "bg-green-500/20 text-green-500",
-                            stepStatus === "running" && "bg-primary/20 text-primary",
-                            stepStatus === "pending" && "bg-muted text-muted-foreground"
-                          )}
-                        >
-                          {stepStatus === "completed" ? (
-                            <Check className="h-5 w-5" />
-                          ) : stepStatus === "running" ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : (
-                            <Clock className="h-5 w-5" />
-                          )}
-                        </div>
-
-                        {/* Step Info */}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <Icon className="h-4 w-4 text-muted-foreground" />
-                            <h3 className="font-semibold text-foreground">{step.name}</h3>
-                          </div>
-                          <p className="text-muted-foreground text-sm">{step.description}</p>
-                        </div>
-
-                        {/* Info Button */}
-                        <button
-                          type="button"
-                          onClick={() => setShowMetricInfo(showMetricInfo === step.id ? null : step.id)}
-                          className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        >
-                          <Info className="h-4 w-4" />
-                        </button>
+                    <div key={step.id} className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
+                      stepStatus === "completed" && "text-green-600 dark:text-green-400",
+                      stepStatus === "running" && "text-primary bg-primary/5",
+                      stepStatus === "pending" && "text-muted-foreground opacity-50"
+                    )}>
+                      <div className="flex h-5 w-5 items-center justify-center">
+                        {stepStatus === "completed" ? (
+                          <Check className="h-4 w-4" />
+                        ) : stepStatus === "running" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Icon className="h-4 w-4" />
+                        )}
                       </div>
-
-                      {/* Expanded Info */}
-                      {showMetricInfo === step.id && (
-                        <div className="mt-4 animate-in fade-in slide-in-from-top-2 rounded-lg bg-muted/50 p-4">
-                          <p className="mb-3 text-foreground text-sm">{step.definition}</p>
-                          <div className="space-y-2">
-                            {step.metrics.map((metric) => (
-                              <div key={metric.name} className="flex items-start gap-2 text-sm">
-                                <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                                <div>
-                                  <span className="font-medium text-foreground">{metric.name}:</span>{" "}
-                                  <span className="text-muted-foreground">{metric.desc}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <span className="font-medium">{step.name}</span>
                     </div>
                   )
                 })}
               </div>
 
-              {/* Cancel Button */}
               <button
                 type="button"
                 onClick={cancelAnalysis}
-                className="mt-6 w-full rounded-xl border border-border bg-background py-3 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="mt-6 w-full rounded-lg border border-border py-2 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
               >
-                Cancel Analysis
+                Cancel
               </button>
             </div>
           </div>
@@ -559,63 +427,21 @@ export default function Home() {
             }`}
           >
             <div className="rounded-2xl border border-border/50 bg-card/80 p-6 shadow-xl backdrop-blur-sm">
-              {/* Input mode toggle */}
-              <div className="mb-3 flex items-center gap-2 text-sm">
-                <button
-                  type="button"
-                  onClick={() => setInputType("url")}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 font-medium transition-colors",
-                    inputType === "url" ? "bg-primary text-primary-foreground" : "bg-muted/20 text-muted-foreground"
-                  )}
-                >
-                  URL
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInputType("brand")}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 font-medium transition-colors",
-                    inputType === "brand" ? "bg-primary text-primary-foreground" : "bg-muted/20 text-muted-foreground"
-                  )}
-                >
-                  Brand
-                </button>
-                <span className="ml-3 text-xs text-muted-foreground">Analyze by website or brand name</span>
-              </div>
-
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                  {inputType === "url" ? (
-                    <svg aria-hidden="true" className="h-5 w-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
-                    </svg>
-                  ) : (
-                    <Sparkles className="h-5 w-5 text-muted-foreground" />
-                  )}
+                  <svg aria-hidden="true" className="h-5 w-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
+                  </svg>
                 </div>
-
-                {inputType === "url" ? (
-                  <input
-                    type="text"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="yourwebsite.com"
-                    className="h-14 w-full rounded-xl border-0 bg-muted/50 pr-4 pl-12 text-foreground text-lg placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    disabled={isAnalyzing}
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={brand}
-                    onChange={(e) => setBrand(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Your brand name (e.g. Acme Inc)"
-                    className="h-14 w-full rounded-xl border-0 bg-muted/50 pr-4 pl-12 text-foreground text-lg placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    disabled={isAnalyzing}
-                  />
-                )}
+                <input
+                  type="text"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="yourwebsite.com"
+                  className="h-14 w-full rounded-xl border-0 bg-muted/50 pr-4 pl-12 text-foreground text-lg placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  disabled={isAnalyzing}
+                />
               </div>
 
               {/* CAPTCHA */}
@@ -644,18 +470,13 @@ export default function Home() {
               <button
                 type="button"
                 onClick={startWorkflow}
-                disabled={
-                  (inputType === "url" ? !url.trim() : !brand.trim()) ||
-                  isAnalyzing ||
-                  (!!TURNSTILE_SITE_KEY && !captchaToken)
-                }
+                disabled={!url.trim() || isAnalyzing || (!!TURNSTILE_SITE_KEY && !captchaToken)}
                 className="group relative mt-4 h-14 w-full overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary/80 font-semibold text-primary-foreground transition-transform hover:scale-[1.01] disabled:pointer-events-none disabled:opacity-50"
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
-                  {inputType === "url" ? "Check Website" : "Analyze Brand"}
+                  Check AI Visibility
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </span>
-                <div className="-translate-x-full absolute inset-0 bg-white/5 transition-transform group-hover:translate-x-full" />
               </button>
             </div>
           </div>
@@ -669,42 +490,45 @@ export default function Home() {
             }`}
           >
             {/* AI Visibility Score */}
-            <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-card/80 to-card/40 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:shadow-primary/5 hover:shadow-xl">
-              <div className="-right-4 -top-4 absolute h-24 w-24 rounded-full bg-primary/5 blur-2xl transition-all group-hover:bg-primary/10" />
+            <div className="group relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-emerald-950/40 p-8 backdrop-blur-xl transition-all duration-500 hover:border-emerald-400/40 hover:shadow-emerald-500/10 hover:shadow-2xl dark:from-slate-900/90 dark:to-emerald-950/30">
+              <div className="-right-8 -top-8 absolute h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl transition-all duration-500 group-hover:bg-emerald-400/20" />
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
               <div className="relative">
-                <div className="mb-4 inline-flex rounded-xl bg-primary/10 p-3 text-primary transition-transform duration-300 group-hover:scale-110">
-                  <Target className="h-6 w-6" strokeWidth={1.5} />
+                <div className="mb-5 inline-flex rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 p-4 text-emerald-400 shadow-lg shadow-emerald-500/10 transition-all duration-500 group-hover:scale-110 group-hover:shadow-emerald-500/20">
+                  <Target className="h-7 w-7" strokeWidth={1.5} />
                 </div>
-                <h3 className="font-semibold text-foreground text-lg">AI Visibility Score</h3>
-                <p className="mt-2 text-muted-foreground text-sm leading-relaxed">
+                <h3 className="font-semibold text-foreground text-xl tracking-tight">AI Visibility Score</h3>
+                <p className="mt-3 text-muted-foreground leading-relaxed">
                   See how discoverable you are to AI assistants
                 </p>
               </div>
             </div>
 
             {/* Get AI-Ready Files */}
-            <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-card/80 to-card/40 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:shadow-primary/5 hover:shadow-xl">
-              <div className="-right-4 -top-4 absolute h-24 w-24 rounded-full bg-blue-500/5 blur-2xl transition-all group-hover:bg-blue-500/10" />
+            <div className="group relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-emerald-950/40 p-8 backdrop-blur-xl transition-all duration-500 hover:border-emerald-400/40 hover:shadow-emerald-500/10 hover:shadow-2xl dark:from-slate-900/90 dark:to-emerald-950/30">
+              <div className="-right-8 -top-8 absolute h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl transition-all duration-500 group-hover:bg-emerald-400/20" />
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
               <div className="relative">
-                <div className="mb-4 inline-flex rounded-xl bg-blue-500/10 p-3 text-blue-500 transition-transform duration-300 group-hover:scale-110">
-                  <FileText className="h-6 w-6" strokeWidth={1.5} />
+                <div className="mb-5 inline-flex rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 p-4 text-emerald-400 shadow-lg shadow-emerald-500/10 transition-all duration-500 group-hover:scale-110 group-hover:shadow-emerald-500/20">
+                  <FileText className="h-7 w-7" strokeWidth={1.5} />
                 </div>
-                <h3 className="font-semibold text-foreground text-lg">Get AI-Ready Files</h3>
-                <p className="mt-2 text-muted-foreground text-sm leading-relaxed">
+                <h3 className="font-semibold text-foreground text-xl tracking-tight">Get AI-Ready Files</h3>
+                <p className="mt-3 text-muted-foreground leading-relaxed">
                   Download optimized robots.txt & llms.txt
                 </p>
               </div>
             </div>
 
             {/* Smart Recommendations */}
-            <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-card/80 to-card/40 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:shadow-primary/5 hover:shadow-xl">
-              <div className="-right-4 -top-4 absolute h-24 w-24 rounded-full bg-amber-500/5 blur-2xl transition-all group-hover:bg-amber-500/10" />
+            <div className="group relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-emerald-950/40 p-8 backdrop-blur-xl transition-all duration-500 hover:border-emerald-400/40 hover:shadow-emerald-500/10 hover:shadow-2xl dark:from-slate-900/90 dark:to-emerald-950/30">
+              <div className="-right-8 -top-8 absolute h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl transition-all duration-500 group-hover:bg-emerald-400/20" />
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
               <div className="relative">
-                <div className="mb-4 inline-flex rounded-xl bg-amber-500/10 p-3 text-amber-500 transition-transform duration-300 group-hover:scale-110">
-                  <Lightbulb className="h-6 w-6" strokeWidth={1.5} />
+                <div className="mb-5 inline-flex rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 p-4 text-emerald-400 shadow-lg shadow-emerald-500/10 transition-all duration-500 group-hover:scale-110 group-hover:shadow-emerald-500/20">
+                  <Lightbulb className="h-7 w-7" strokeWidth={1.5} />
                 </div>
-                <h3 className="font-semibold text-foreground text-lg">Smart Recommendations</h3>
-                <p className="mt-2 text-muted-foreground text-sm leading-relaxed">
+                <h3 className="font-semibold text-foreground text-xl tracking-tight">Smart Recommendations</h3>
+                <p className="mt-3 text-muted-foreground leading-relaxed">
                   Actionable tips to improve your AI presence
                 </p>
               </div>
@@ -719,33 +543,34 @@ export default function Home() {
               mounted ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
             }`}
           >
-            <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 p-8">
+            <div className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-emerald-950/40 p-10 backdrop-blur-xl dark:from-slate-900/90 dark:to-emerald-950/30">
               {/* Decorative elements */}
-              <div className="-left-10 -top-10 absolute h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
-              <div className="-bottom-10 -right-10 absolute h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
+              <div className="-left-16 -top-16 absolute h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" />
+              <div className="-bottom-16 -right-16 absolute h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" />
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-emerald-500/5" />
               
               <div className="relative">
-                <div className="mb-5 inline-flex rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 p-4">
-                  <Rocket className="h-8 w-8 text-primary" strokeWidth={1.5} />
+                <div className="mb-6 inline-flex rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 p-5 shadow-lg shadow-emerald-500/10">
+                  <Rocket className="h-10 w-10 text-emerald-400" strokeWidth={1.5} />
                 </div>
-                <h2 className="font-bold text-2xl text-foreground">
+                <h2 className="font-bold text-3xl text-foreground tracking-tight">
                   AI is the new search engine
                 </h2>
-                <p className="mx-auto mt-4 max-w-lg text-muted-foreground leading-relaxed">
+                <p className="mx-auto mt-5 max-w-lg text-muted-foreground text-lg leading-relaxed">
                   More people are asking ChatGPT, Claude, and Perplexity for
                   recommendations instead of searching on Google. When someone asks
                   &quot;What&apos;s the best [your category]?&quot; - will your brand show up?
                 </p>
-                <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm">
-                  <div className="flex items-center gap-2 rounded-full bg-green-500/10 px-4 py-2 text-green-600 dark:text-green-400">
+                <div className="mt-10 flex flex-wrap items-center justify-center gap-4 text-sm">
+                  <div className="flex items-center gap-2.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-5 py-2.5 text-emerald-400 shadow-sm">
                     <CheckCircle2 className="h-4 w-4" strokeWidth={2} />
                     <span className="font-medium">Free analysis</span>
                   </div>
-                  <div className="flex items-center gap-2 rounded-full bg-blue-500/10 px-4 py-2 text-blue-600 dark:text-blue-400">
+                  <div className="flex items-center gap-2.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-5 py-2.5 text-emerald-400 shadow-sm">
                     <Sparkles className="h-4 w-4" strokeWidth={2} />
                     <span className="font-medium">No signup required</span>
                   </div>
-                  <div className="flex items-center gap-2 rounded-full bg-amber-500/10 px-4 py-2 text-amber-600 dark:text-amber-400">
+                  <div className="flex items-center gap-2.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-5 py-2.5 text-emerald-400 shadow-sm">
                     <Zap className="h-4 w-4" strokeWidth={2} />
                     <span className="font-medium">Instant results</span>
                   </div>

@@ -56,6 +56,36 @@ type AnalysisReport = {
   social?: SocialData
 }
 
+type ExecutiveSummary = {
+  brand?: string
+  rating?: "Excellent" | "Good" | "Needs Work" | "Poor"
+  rating_color?: "green" | "blue" | "yellow" | "red"
+  overall_score?: number
+  scores?: {
+    ai_readiness?: number
+    content?: number
+    technical?: number
+    structured_data?: number
+  }
+  primary_strength?: string | null
+  primary_weakness?: string | null
+  critical_issues_count?: number
+  total_issues_count?: number
+  ai_access?: {
+    has_llms_txt?: boolean
+    has_sitemap?: boolean
+    allowed_bots_count?: number
+    blocked_bots_count?: number
+    allowed_bots?: string[]
+    blocked_bots?: string[]
+  }
+  metadata?: {
+    title?: string | null
+    description?: string | null
+    language?: string
+  }
+}
+
 type InsightResponse = {
   success?: boolean
   prompt?: string
@@ -78,6 +108,8 @@ type InsightResponse = {
   models_successful?: number
   error?: string
   detail?: string
+  executive_summary?: ExecutiveSummary
+  executive_summary_md?: string
 }
 
 type InsightState =
@@ -400,9 +432,22 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
           setKeywordsData(data.keywords)
         }
         
-        // Set marketing from workflow
+        // Set marketing from workflow (transform snake_case to camelCase)
         if (data.marketing) {
-          setMarketingData(data.marketing)
+          const marketing = data.marketing as Record<string, unknown>
+          setMarketingData({
+            targetKeywords: (marketing.target_keywords ?? []) as TargetKeyword[],
+            socialPosts: ((marketing.social_posts ?? []) as Array<Record<string, unknown>>).map(post => ({
+              platform: post.platform as "facebook" | "linkedin" | "twitter",
+              content: (post.content ?? "") as string,
+              hashtags: (post.hashtags ?? []) as string[],
+              callToAction: (post.call_to_action ?? post.callToAction ?? "") as string,
+              bestTimeToPost: (post.best_time ?? post.bestTimeToPost ?? "") as string,
+            })),
+            contentIdeas: ((marketing.content_ideas ?? []) as Array<Record<string, unknown>>).map(idea => 
+              typeof idea === "string" ? idea : (idea.title ?? idea.description ?? "") as string
+            ),
+          })
         }
 
         if (data.social) {
@@ -577,16 +622,51 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
   }, [workflowData?.timestamp, analysis?.timestamp])
 
   const insightsResponses = useMemo(() => {
-    if (insights.status !== "success" || !insights.data?.responses) return []
-    return Object.entries(insights.data.responses).map(([model, response]) => ({
-      key: model,
-      name: response.model_name ?? model,
-      provider: response.provider ?? "AI",
-      success: response.success,
-      text: response.response,
-      error: response.error,
-      latency: response.latency_ms,
-    }))
+    if (insights.status !== "success" || !insights.data) return []
+    
+    // Handle new simpler format: { openai: "text", grok: "text", summary: "..." }
+    const modelMap: Record<string, { name: string; provider: string }> = {
+      openai: { name: "GPT-4o", provider: "OpenAI" },
+      grok: { name: "Grok", provider: "xAI" },
+    }
+    
+    const responses: Array<{
+      key: string
+      name: string
+      provider: string
+      success: boolean
+      text: string | undefined
+      error: string | undefined
+      latency: number | undefined
+    }> = []
+    
+    for (const [key, value] of Object.entries(insights.data)) {
+      if (key === "summary") continue // Skip summary field
+      const modelInfo = modelMap[key] || { name: key, provider: "AI" }
+      if (typeof value === "string" && value) {
+        responses.push({
+          key,
+          name: modelInfo.name,
+          provider: modelInfo.provider,
+          success: true,
+          text: value,
+          error: undefined,
+          latency: undefined,
+        })
+      } else if (value === null) {
+        responses.push({
+          key,
+          name: modelInfo.name,
+          provider: modelInfo.provider,
+          success: false,
+          text: undefined,
+          error: "Failed to generate insights",
+          latency: undefined,
+        })
+      }
+    }
+    
+    return responses
   }, [insights])
 
   const metadataForFiles = useMemo(() => {

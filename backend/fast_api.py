@@ -24,6 +24,7 @@ from typing import Annotated
 import taskiq_fastapi
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from models.api import (
     AISummaryRequest,
@@ -712,6 +713,81 @@ Return ONLY the JSON array, no markdown or explanation."""
         raise HTTPException(status_code=500, detail="Failed to parse AI response")
     except Exception as e:
         logger.error(f"Suggestion generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Generate Files Endpoint (robots.txt & llms.txt)
+# =============================================================================
+
+
+class GenerateFilesRequest(BaseModel):
+    """Request body for generate-files endpoint."""
+    report: dict
+
+
+class GenerateFilesResponse(BaseModel):
+    """Response for generate-files endpoint."""
+    robots_txt: str
+    llms_txt: str
+    ai_powered: bool
+
+
+@app.post(
+    "/generate-files",
+    response_model=GenerateFilesResponse,
+    tags=["generation"],
+    summary="Generate robots.txt and llms.txt",
+    description="Generate AI-optimized robots.txt and llms.txt files based on SEO report data.",
+    responses={
+        200: {"description": "Files generated successfully"},
+        500: {"description": "Generation failed"},
+    },
+)
+async def generate_files(
+    request: GenerateFilesRequest,
+) -> GenerateFilesResponse:
+    """
+    Generate robots.txt and llms.txt files using AI analysis.
+    
+    Args:
+        request: Request containing the SEO report data
+        
+    Returns:
+        Generated file contents
+    """
+    report = request.report
+    
+    if not report:
+        raise HTTPException(status_code=400, detail="Report data is required")
+    
+    try:
+        # Import generators from seo_ai_generator
+        from seo_ai_generator import RobotsTxtGenerator, LlmsTxtGenerator, OpenAIClient
+        
+        # Create OpenAI client
+        openai_client = OpenAIClient()
+        ai_powered = openai_client.is_configured()
+        
+        # Generate robots.txt
+        robots_gen = RobotsTxtGenerator(report, openai_client)
+        robots_content = await robots_gen.generate()
+        
+        # Generate llms.txt
+        llms_gen = LlmsTxtGenerator(report, openai_client)
+        llms_content = await llms_gen.generate()
+        
+        return GenerateFilesResponse(
+            robots_txt=robots_content,
+            llms_txt=llms_content,
+            ai_powered=ai_powered,
+        )
+        
+    except ImportError as e:
+        logger.error(f"Failed to import seo_ai_generator: {e}")
+        raise HTTPException(status_code=500, detail="File generator module not available")
+    except Exception as e:
+        logger.error(f"File generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

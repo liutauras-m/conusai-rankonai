@@ -1,11 +1,11 @@
 "use client"
 
-import { Suspense, useMemo } from "react"
+import { Suspense, useMemo, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import type { Route } from "next"
 import Link from "next/link"
 import Image from "next/image"
-import { BarChart3, Compass, Radio, Search, Megaphone, Share2, ChevronRight, Mail } from "lucide-react"
+import { BarChart3, Compass, Radio, Search, Megaphone, Share2, ChevronRight, Mail, Link2, Check } from "lucide-react"
 
 import { ReportProvider, useReportContext } from "./report-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +26,7 @@ function ReportLayoutShell({ children }: { children: React.ReactNode }) {
   const { status, formattedTimestamp, error, queryString } = useReportContext()
   const searchParams = useSearchParams()
   const pathname = usePathname()
+  const [copied, setCopied] = useState(false)
 
   const navSuffix = useMemo(() => (queryString ? `?${queryString}` : ""), [queryString])
   const isActive = useMemo(() => {
@@ -42,13 +43,23 @@ function ReportLayoutShell({ children }: { children: React.ReactNode }) {
     }
   }, [searchParams])
 
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error("Failed to copy:", err)
+    }
+  }
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-background text-foreground">
         <Sidebar side="left" variant="inset" collapsible="icon" className="border-border/50 border-r">
           <SidebarHeader className="p-4">
             <Link href="/" className="group flex items-center gap-2">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center">
                 <Image
                   src="/favicon.png"
                   alt="Rank on AI"
@@ -57,10 +68,7 @@ function ReportLayoutShell({ children }: { children: React.ReactNode }) {
                   className="h-8 w-8"
                 />
               </div>
-              <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                <span className="font-semibold text-sm tracking-tight">Rank on AI</span>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-widest">Intelligence</span>
-              </div>
+              <span className="font-semibold text-sm tracking-tight group-data-[collapsible=icon]:hidden">Rank on AI</span>
             </Link>
           </SidebarHeader>
           <SidebarSeparator />
@@ -134,6 +142,18 @@ function ReportLayoutShell({ children }: { children: React.ReactNode }) {
                 {displayUrl ? (
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="text-foreground">{displayUrl}</span>
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      title={copied ? "Copied!" : "Copy link to share"}
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Link2 className="h-4 w-4" />
+                      )}
+                    </button>
                   </span>
                 ) : (
                   "Enter a URL to begin"

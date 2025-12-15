@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle2, XCircle, Brain, MessageCircleQuestion, Clock, FileText, ChevronDown, ChevronUp } from "lucide-react"
+import { CheckCircle2, XCircle, Brain, MessageCircleQuestion, Clock, FileText, ChevronDown, ChevronUp, Sparkles, AlertTriangle, Shield, TrendingUp, Target } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Markdown } from "@/components/ui/markdown"
 import { AwaitingAnalysis } from "../../awaiting-analysis"
@@ -25,8 +25,121 @@ export default function InsightsPage() {
     })
   }
 
+  // Get executive summary from insights data
+  const executiveSummary = insights.status === "success" ? insights.data?.executive_summary : null
+
+  const getRatingStyles = (color?: string) => {
+    switch (color) {
+      case "green": return "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
+      case "blue": return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+      case "yellow": return "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
+      case "red": return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
+      default: return "bg-muted text-muted-foreground border-border"
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* Executive Summary Section */}
+      {executiveSummary && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">Executive Summary</h2>
+          </div>
+          
+          <div className="rounded-xl border border-border/50 bg-card p-4 sm:p-6">
+            {/* Rating Badge and Score */}
+            <div className="mb-6 flex flex-wrap items-center gap-4">
+              <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 font-semibold ${getRatingStyles(executiveSummary.rating_color)}`}>
+                <Target className="h-4 w-4" />
+                {executiveSummary.rating}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-sm">Overall Score:</span>
+                <span className="font-bold text-2xl text-foreground">{executiveSummary.overall_score}/100</span>
+              </div>
+            </div>
+
+            {/* Key Metrics Grid */}
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg border border-border/50 bg-background p-3">
+                <p className="text-muted-foreground text-xs">AI Readiness</p>
+                <p className="font-semibold text-foreground text-lg">{executiveSummary.scores?.ai_readiness ?? 0}</p>
+              </div>
+              <div className="rounded-lg border border-border/50 bg-background p-3">
+                <p className="text-muted-foreground text-xs">Content</p>
+                <p className="font-semibold text-foreground text-lg">{executiveSummary.scores?.content ?? 0}</p>
+              </div>
+              <div className="rounded-lg border border-border/50 bg-background p-3">
+                <p className="text-muted-foreground text-xs">Technical</p>
+                <p className="font-semibold text-foreground text-lg">{executiveSummary.scores?.technical ?? 0}</p>
+              </div>
+              <div className="rounded-lg border border-border/50 bg-background p-3">
+                <p className="text-muted-foreground text-xs">Structured Data</p>
+                <p className="font-semibold text-foreground text-lg">{executiveSummary.scores?.structured_data ?? 0}</p>
+              </div>
+            </div>
+
+            {/* Strengths & Weaknesses */}
+            <div className="mb-6 grid gap-4 sm:grid-cols-2">
+              {executiveSummary.primary_strength && (
+                <div className="flex items-start gap-3 rounded-lg border border-green-500/20 bg-green-500/5 p-4">
+                  <TrendingUp className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
+                  <div>
+                    <p className="font-medium text-green-600 text-sm dark:text-green-400">Primary Strength</p>
+                    <p className="mt-1 text-foreground text-sm">{executiveSummary.primary_strength}</p>
+                  </div>
+                </div>
+              )}
+              {executiveSummary.primary_weakness && (
+                <div className="flex items-start gap-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-4">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-500" />
+                  <div>
+                    <p className="font-medium text-yellow-600 text-sm dark:text-yellow-400">Needs Improvement</p>
+                    <p className="mt-1 text-foreground text-sm">{executiveSummary.primary_weakness}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* AI Access Status */}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-background p-3">
+                <Shield className={`h-4 w-4 ${executiveSummary.ai_access?.has_llms_txt ? 'text-green-500' : 'text-muted-foreground'}`} />
+                <div>
+                  <p className="font-medium text-foreground text-sm">llms.txt</p>
+                  <p className="text-muted-foreground text-xs">{executiveSummary.ai_access?.has_llms_txt ? 'Present' : 'Missing'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-background p-3">
+                <FileText className={`h-4 w-4 ${executiveSummary.ai_access?.has_sitemap ? 'text-green-500' : 'text-muted-foreground'}`} />
+                <div>
+                  <p className="font-medium text-foreground text-sm">Sitemap</p>
+                  <p className="text-muted-foreground text-xs">{executiveSummary.ai_access?.has_sitemap ? 'Present' : 'Missing'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-background p-3">
+                <Brain className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="font-medium text-foreground text-sm">AI Bots</p>
+                  <p className="text-muted-foreground text-xs">{executiveSummary.ai_access?.allowed_bots_count ?? 0} allowed</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Issues Summary */}
+            {(executiveSummary.critical_issues_count ?? 0) > 0 && (
+              <div className="mt-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+                <p className="text-red-600 text-sm dark:text-red-400">
+                  {executiveSummary.critical_issues_count} critical issue{executiveSummary.critical_issues_count !== 1 ? 's' : ''} found out of {executiveSummary.total_issues_count} total
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
       {/* AI Braintrust Section */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
