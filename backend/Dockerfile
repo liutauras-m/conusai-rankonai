@@ -5,21 +5,18 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install additional production dependencies
-RUN pip install --no-cache-dir \
-    fastapi \
-    uvicorn[standard] \
-    redis \
-    pydantic
-
 # Copy application code
 COPY . .
+
+# Use the TaskIQ version of fast_api
+RUN if [ -f fast_api_new.py ]; then mv fast_api_new.py fast_api.py; fi
 
 # Create non-root user for security
 RUN useradd --create-home appuser && chown -R appuser:appuser /app
@@ -30,7 +27,8 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Run with uvicorn
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Run with uvicorn (fast_api.py is the main entry point)
+CMD ["uvicorn", "fast_api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+

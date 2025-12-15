@@ -48,6 +48,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    ports:
+      - "8000:8000"  # Expose for direct testing
     environment:
       - REDIS_URL=redis://redis:6379
       - MAX_CONCURRENT_ANALYSES=5
@@ -91,5 +93,33 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # TaskIQ Worker for background job processing
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: taskiq worker tasks.taskiq_worker:broker --fs-discover
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379
+      - MAX_CONCURRENT_ANALYSES=5
+      - CACHE_TTL=3600
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+      replicas: 2  # Run 2 workers for parallel processing
+    restart: unless-stopped
+
 volumes:
   redis_data:
+
