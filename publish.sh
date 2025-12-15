@@ -17,16 +17,11 @@ TAG="${1:-latest}"
 FRONTEND_IMAGE="${REGISTRY}/${OWNER}/${REPO}-frontend:${TAG}"
 BACKEND_IMAGE="${REGISTRY}/${OWNER}/${REPO}-backend:${TAG}"
 
-# Load .env file if exists
-ENV_FILE="./frontend/.env"
-if [ -f "$ENV_FILE" ]; then
-    # Extract GITHUB_API_KEY from .env (handles export and quotes)
-    GITHUB_TOKEN=$(grep -E "^(export )?GITHUB_API_KEY=" "$ENV_FILE" | sed 's/^export //' | cut -d'=' -f2 | tr -d '"')
-fi
-
-# Fallback to root .env
-if [ -z "$GITHUB_TOKEN" ] && [ -f "./.env" ]; then
-    GITHUB_TOKEN=$(grep -E "^(export )?GITHUB_TOKEN=" "./.env" | sed 's/^export //' | cut -d'=' -f2 | tr -d '"')
+# Load .env file if exists - source it directly for proper variable expansion
+if [ -f "./.env" ]; then
+    set -a
+    source ./.env
+    set +a
 fi
 
 echo -e "${YELLOW}🚀 Building and publishing images for ${PLATFORM}${NC}"
@@ -36,11 +31,14 @@ echo ""
 # Login to GHCR if token available
 if [ -n "$GITHUB_TOKEN" ]; then
     echo -e "${YELLOW}🔐 Logging in to ${REGISTRY}...${NC}"
-    echo "$GITHUB_TOKEN" | docker login "$REGISTRY" -u "$OWNER" --password-stdin
-    echo ""
+    if ! echo "$GITHUB_TOKEN" | docker login "$REGISTRY" -u "$OWNER" --password-stdin; then
+        echo -e "${RED}❌ Failed to login to ${REGISTRY}${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✅ Logged in to ${REGISTRY}${NC}"
+else
+    echo -e "${YELLOW}⚠️  No GITHUB_TOKEN found, assuming already logged in${NC}"
 fi
-
-echo -e "${GREEN}✅ Logged in to ${REGISTRY}${NC}"
 echo ""
 
 # Create buildx builder if it doesn't exist

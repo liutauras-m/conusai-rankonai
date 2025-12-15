@@ -29,7 +29,7 @@ services:
           - node.role == worker
       labels:
         - traefik.enable=true
-        - traefik.docker.network=dokploy-network
+        - traefik.swarm.network=dokploy-network
         # HTTP Router - redirect to HTTPS
         - traefik.http.routers.rankon.rule=Host(`rankon.cloud.conusai.com`)
         - traefik.http.routers.rankon.entrypoints=web
@@ -37,7 +37,10 @@ services:
         # HTTPS Router
         - traefik.http.routers.rankon-secure.rule=Host(`rankon.cloud.conusai.com`)
         - traefik.http.routers.rankon-secure.entrypoints=websecure
-        - traefik.http.routers.rankon-secure.tls.certresolver=le
+        - traefik.http.routers.rankon-secure.tls=true
+        - traefik.http.routers.rankon-secure.tls.certresolver=letsencrypt
+        - traefik.http.routers.rankon-secure.service=rankon
+        # Service
         - traefik.http.services.rankon.loadbalancer.server.port=3000
         # Redirect middleware
         - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
@@ -79,11 +82,14 @@ services:
           - node.role == worker
       labels:
         - traefik.enable=true
-        - traefik.docker.network=dokploy-network
+        - traefik.swarm.network=dokploy-network
         # HTTPS Router for API
         - traefik.http.routers.rankon-api.rule=Host(`rankon.cloud.conusai.com`) && PathPrefix(`/api`)
         - traefik.http.routers.rankon-api.entrypoints=websecure
-        - traefik.http.routers.rankon-api.tls.certresolver=le
+        - traefik.http.routers.rankon-api.tls=true
+        - traefik.http.routers.rankon-api.tls.certresolver=letsencrypt
+        - traefik.http.routers.rankon-api.service=rankon-api
+        # Service
         - traefik.http.services.rankon-api.loadbalancer.server.port=8000
         # Rate limiting middleware
         - traefik.http.middlewares.rankon-ratelimit.ratelimit.average=100
