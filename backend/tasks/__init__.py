@@ -11,6 +11,7 @@ from .insights import InsightsTask
 from .signals import SignalsTask
 from .keywords import KeywordsTask
 from .marketing import MarketingTask
+from .social import SocialTask
 from .broker import broker
 from .taskiq_worker import run_workflow
 
@@ -21,6 +22,7 @@ __all__ = [
     "SignalsTask",
     "KeywordsTask",
     "MarketingTask",
+    "SocialTask",
     "broker",
     "run_workflow",
 ]

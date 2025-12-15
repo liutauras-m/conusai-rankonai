@@ -194,7 +194,7 @@ class GrokService:
         self,
         system_prompt: str,
         user_prompt: str,
-        model: str = "grok-beta",
+        model: str = "grok-3-mini",
         temperature: float = 0.7,
         max_tokens: int = 2500,
     ) -> str:
@@ -228,7 +228,7 @@ class GrokService:
         self,
         system_prompt: str,
         user_prompt: str,
-        model: str = "grok-beta",
+        model: str = "grok-3-mini",
         temperature: float = 0.7,
         max_tokens: int = 2500,
     ) -> dict:

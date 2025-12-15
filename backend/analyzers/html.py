@@ -27,6 +27,7 @@ from utils.constants import (
     META_DESC_MIN_LENGTH,
     META_DESC_MAX_LENGTH,
 )
+from utils.language import LanguageDetector
 
 
 class HTMLAnalyzer:
@@ -417,7 +418,7 @@ class HTMLAnalyzer:
         og_tags = self.soup.find_all('meta', property=re.compile('^og:'))
         for tag in og_tags:
             prop = tag.get('property', '').replace('og:', '')
-            result["open_graph"][prop] = tag.get('content', '')[:200]
+            result["open_graph"][prop] = tag.get('content', '')[:500]
         
         if not result["open_graph"]:
             self.issues.append(Issue(
@@ -438,7 +439,7 @@ class HTMLAnalyzer:
         twitter_tags = self.soup.find_all('meta', attrs={'name': re.compile('^twitter:')})
         for tag in twitter_tags:
             prop = tag.get('name', '').replace('twitter:', '')
-            result["twitter_card"][prop] = tag.get('content', '')[:200]
+            result["twitter_card"][prop] = tag.get('content', '')[:500]
         
         if not result["twitter_card"]:
             self.issues.append(Issue(
@@ -447,6 +448,368 @@ class HTMLAnalyzer:
             ))
         
         return result
+    
+    def analyze_social_metadata(self) -> dict:
+        """
+        Comprehensive social sharing metadata analysis.
+        
+        Extracts and validates all social sharing metadata including:
+        - Open Graph (Facebook, LinkedIn, WhatsApp)
+        - Twitter Card
+        - Social images with dimensions
+        - Platform-specific requirements
+        
+        Returns:
+            Dictionary with detailed social metadata analysis:
+            - open_graph: Full OG tag analysis with validation
+            - twitter_card: Twitter Card analysis with validation
+            - social_images: List of detected social images
+            - platform_compatibility: Compatibility scores per platform
+            - issues: Social-specific SEO issues
+            - score: Overall social sharing readiness score
+        """
+        result = {
+            "open_graph": self._analyze_open_graph_detailed(),
+            "twitter_card": self._analyze_twitter_card_detailed(),
+            "social_images": [],
+            "platform_compatibility": {},
+            "issues": [],
+            "score": 100,
+        }
+        
+        # Collect all social images
+        result["social_images"] = self._collect_social_images(result)
+        
+        # Calculate platform compatibility
+        result["platform_compatibility"] = self._calculate_platform_compatibility(result)
+        
+        # Calculate overall score
+        result["score"] = self._calculate_social_score(result)
+        
+        return result
+    
+    def _analyze_open_graph_detailed(self) -> dict:
+        """Analyze Open Graph tags in detail."""
+        og_data = {
+            "present": False,
+            "tags": {},
+            "missing_required": [],
+            "missing_recommended": [],
+            "issues": [],
+        }
+        
+        # Required OG tags
+        required_tags = ["title", "type", "url", "image"]
+        # Recommended OG tags
+        recommended_tags = ["description", "site_name", "locale"]
+        # Image-related tags
+        image_tags = ["image:width", "image:height", "image:alt", "image:type"]
+        
+        # Extract all OG tags
+        og_meta = self.soup.find_all('meta', property=re.compile('^og:'))
+        for tag in og_meta:
+            prop = tag.get('property', '').replace('og:', '')
+            content = tag.get('content', '')
+            og_data["tags"][prop] = content
+        
+        og_data["present"] = len(og_data["tags"]) > 0
+        
+        # Check required tags
+        for req in required_tags:
+            if req not in og_data["tags"] or not og_data["tags"][req]:
+                og_data["missing_required"].append(req)
+                og_data["issues"].append({
+                    "code": f"OG_MISSING_{req.upper()}",
+                    "severity": "high" if req in ["title", "image"] else "medium",
+                    "message": f"Missing required Open Graph tag: og:{req}",
+                })
+        
+        # Check recommended tags
+        for rec in recommended_tags:
+            if rec not in og_data["tags"] or not og_data["tags"][rec]:
+                og_data["missing_recommended"].append(rec)
+        
+        # Validate og:title length (should be 40-60 chars)
+        if "title" in og_data["tags"]:
+            title_len = len(og_data["tags"]["title"])
+            if title_len > 90:
+                og_data["issues"].append({
+                    "code": "OG_TITLE_TOO_LONG",
+                    "severity": "low",
+                    "message": f"og:title is {title_len} chars (recommended: under 60)",
+                })
+        
+        # Validate og:description length (should be 100-200 chars)
+        if "description" in og_data["tags"]:
+            desc_len = len(og_data["tags"]["description"])
+            if desc_len > 300:
+                og_data["issues"].append({
+                    "code": "OG_DESC_TOO_LONG",
+                    "severity": "low",
+                    "message": f"og:description is {desc_len} chars (recommended: under 200)",
+                })
+        
+        # Check image dimensions
+        has_image_dimensions = (
+            "image:width" in og_data["tags"] and 
+            "image:height" in og_data["tags"]
+        )
+        if "image" in og_data["tags"] and not has_image_dimensions:
+            og_data["issues"].append({
+                "code": "OG_IMAGE_NO_DIMENSIONS",
+                "severity": "low",
+                "message": "og:image dimensions not specified (add og:image:width and og:image:height)",
+            })
+        
+        return og_data
+    
+    def _analyze_twitter_card_detailed(self) -> dict:
+        """Analyze Twitter Card tags in detail."""
+        twitter_data = {
+            "present": False,
+            "card_type": None,
+            "tags": {},
+            "missing_required": [],
+            "missing_recommended": [],
+            "issues": [],
+        }
+        
+        # Required tags (depends on card type)
+        base_required = ["card", "title"]
+        recommended_tags = ["description", "image", "site", "creator"]
+        
+        # Extract all Twitter tags
+        twitter_meta = self.soup.find_all('meta', attrs={'name': re.compile('^twitter:')})
+        for tag in twitter_meta:
+            prop = tag.get('name', '').replace('twitter:', '')
+            content = tag.get('content', '')
+            twitter_data["tags"][prop] = content
+        
+        twitter_data["present"] = len(twitter_data["tags"]) > 0
+        twitter_data["card_type"] = twitter_data["tags"].get("card", "summary")
+        
+        # Check required tags
+        for req in base_required:
+            if req not in twitter_data["tags"] or not twitter_data["tags"][req]:
+                twitter_data["missing_required"].append(req)
+                twitter_data["issues"].append({
+                    "code": f"TWITTER_MISSING_{req.upper()}",
+                    "severity": "medium",
+                    "message": f"Missing Twitter Card tag: twitter:{req}",
+                })
+        
+        # For summary_large_image, image is required
+        if twitter_data["card_type"] == "summary_large_image":
+            if "image" not in twitter_data["tags"]:
+                twitter_data["missing_required"].append("image")
+                twitter_data["issues"].append({
+                    "code": "TWITTER_LARGE_IMAGE_MISSING",
+                    "severity": "high",
+                    "message": "summary_large_image card requires twitter:image",
+                })
+        
+        # Check recommended tags
+        for rec in recommended_tags:
+            if rec not in twitter_data["tags"] or not twitter_data["tags"][rec]:
+                twitter_data["missing_recommended"].append(rec)
+        
+        # Validate title length (should be under 70 chars)
+        if "title" in twitter_data["tags"]:
+            title_len = len(twitter_data["tags"]["title"])
+            if title_len > 70:
+                twitter_data["issues"].append({
+                    "code": "TWITTER_TITLE_TOO_LONG",
+                    "severity": "low",
+                    "message": f"twitter:title is {title_len} chars (max: 70)",
+                })
+        
+        # Validate description length (should be under 200 chars)
+        if "description" in twitter_data["tags"]:
+            desc_len = len(twitter_data["tags"]["description"])
+            if desc_len > 200:
+                twitter_data["issues"].append({
+                    "code": "TWITTER_DESC_TOO_LONG",
+                    "severity": "low",
+                    "message": f"twitter:description is {desc_len} chars (max: 200)",
+                })
+        
+        return twitter_data
+    
+    def _collect_social_images(self, social_data: dict) -> list[dict]:
+        """Collect all social sharing images."""
+        images = []
+        seen_urls = set()
+        
+        # OG image
+        og_image = social_data["open_graph"]["tags"].get("image")
+        if og_image and og_image not in seen_urls:
+            seen_urls.add(og_image)
+            images.append({
+                "url": og_image,
+                "source": "og:image",
+                "width": social_data["open_graph"]["tags"].get("image:width"),
+                "height": social_data["open_graph"]["tags"].get("image:height"),
+                "alt": social_data["open_graph"]["tags"].get("image:alt"),
+                "type": social_data["open_graph"]["tags"].get("image:type"),
+            })
+        
+        # Additional OG images (og:image can appear multiple times)
+        for i in range(1, 5):
+            key = f"image:{i}" if i > 0 else "image"
+            # Check for numbered images in tags
+            pass  # OG typically uses same key for multiple images
+        
+        # Twitter image
+        twitter_image = social_data["twitter_card"]["tags"].get("image")
+        if twitter_image and twitter_image not in seen_urls:
+            seen_urls.add(twitter_image)
+            images.append({
+                "url": twitter_image,
+                "source": "twitter:image",
+                "width": social_data["twitter_card"]["tags"].get("image:width"),
+                "height": social_data["twitter_card"]["tags"].get("image:height"),
+                "alt": social_data["twitter_card"]["tags"].get("image:alt"),
+            })
+        
+        return images
+    
+    def _calculate_platform_compatibility(self, social_data: dict) -> dict:
+        """Calculate compatibility scores for each platform."""
+        og = social_data["open_graph"]
+        twitter = social_data["twitter_card"]
+        
+        platforms = {
+            "facebook": {
+                "score": 100,
+                "status": "optimal",
+                "issues": [],
+            },
+            "twitter": {
+                "score": 100,
+                "status": "optimal",
+                "issues": [],
+            },
+            "linkedin": {
+                "score": 100,
+                "status": "optimal",
+                "issues": [],
+            },
+            "whatsapp": {
+                "score": 100,
+                "status": "optimal",
+                "issues": [],
+            },
+            "slack": {
+                "score": 100,
+                "status": "optimal",
+                "issues": [],
+            },
+        }
+        
+        # Facebook - requires OG tags
+        if not og["present"]:
+            platforms["facebook"]["score"] -= 50
+            platforms["facebook"]["issues"].append("Missing Open Graph tags")
+        else:
+            platforms["facebook"]["score"] -= len(og["missing_required"]) * 15
+            if "image" not in og["tags"]:
+                platforms["facebook"]["issues"].append("No share image")
+        
+        # Twitter - prefers Twitter Card, falls back to OG
+        if not twitter["present"] and not og["present"]:
+            platforms["twitter"]["score"] -= 50
+            platforms["twitter"]["issues"].append("No Twitter Card or OG tags")
+        elif not twitter["present"]:
+            platforms["twitter"]["score"] -= 10
+            platforms["twitter"]["issues"].append("Using OG fallback (add Twitter Card)")
+        else:
+            platforms["twitter"]["score"] -= len(twitter["missing_required"]) * 15
+        
+        # LinkedIn - uses OG tags
+        if not og["present"]:
+            platforms["linkedin"]["score"] -= 50
+            platforms["linkedin"]["issues"].append("Missing Open Graph tags")
+        else:
+            platforms["linkedin"]["score"] -= len(og["missing_required"]) * 10
+            if "image" not in og["tags"]:
+                platforms["linkedin"]["issues"].append("No share image - LinkedIn strongly prefers images")
+                platforms["linkedin"]["score"] -= 20
+        
+        # WhatsApp - uses OG tags
+        if not og["present"]:
+            platforms["whatsapp"]["score"] -= 40
+            platforms["whatsapp"]["issues"].append("Missing Open Graph tags")
+        else:
+            if "image" not in og["tags"]:
+                platforms["whatsapp"]["issues"].append("No preview image")
+                platforms["whatsapp"]["score"] -= 15
+        
+        # Slack - uses OG tags
+        if not og["present"]:
+            platforms["slack"]["score"] -= 40
+            platforms["slack"]["issues"].append("Missing Open Graph tags")
+        
+        # Update status based on score
+        for platform in platforms:
+            score = platforms[platform]["score"]
+            if score >= 80:
+                platforms[platform]["status"] = "optimal"
+            elif score >= 60:
+                platforms[platform]["status"] = "good"
+            elif score >= 40:
+                platforms[platform]["status"] = "needs_improvement"
+            else:
+                platforms[platform]["status"] = "poor"
+            
+            # Ensure non-negative
+            platforms[platform]["score"] = max(0, platforms[platform]["score"])
+        
+        return platforms
+    
+    def _calculate_social_score(self, social_data: dict) -> int:
+        """Calculate overall social sharing readiness score."""
+        score = 100
+        
+        og = social_data["open_graph"]
+        twitter = social_data["twitter_card"]
+        
+        # OG presence and completeness (50 points max)
+        if not og["present"]:
+            score -= 30
+        else:
+            score -= len(og["missing_required"]) * 8
+            score -= len(og["missing_recommended"]) * 3
+            for issue in og["issues"]:
+                if issue["severity"] == "high":
+                    score -= 10
+                elif issue["severity"] == "medium":
+                    score -= 5
+                else:
+                    score -= 2
+        
+        # Twitter Card (25 points max)
+        if not twitter["present"]:
+            score -= 15
+        else:
+            score -= len(twitter["missing_required"]) * 5
+            for issue in twitter["issues"]:
+                if issue["severity"] == "high":
+                    score -= 8
+                elif issue["severity"] == "medium":
+                    score -= 4
+                else:
+                    score -= 2
+        
+        # Social images (25 points)
+        if not social_data["social_images"]:
+            score -= 20
+        elif len(social_data["social_images"]) == 1:
+            # Check if image has dimensions
+            img = social_data["social_images"][0]
+            if not img.get("width") or not img.get("height"):
+                score -= 5
+        
+        return max(0, score)
     
     def extract_text_content(self) -> str:
         """
@@ -475,3 +838,72 @@ class HTMLAnalyzer:
             return main_content.get_text(separator=' ', strip=True)
         
         return soup_copy.get_text(separator=' ', strip=True)
+    
+    def analyze_language(self, content_language_header: Optional[str] = None) -> dict:
+        """
+        Analyze page language using multiple detection methods.
+        
+        Detects language from:
+        - HTML lang attribute (highest priority)
+        - Content-Language HTTP header
+        - og:locale meta tag
+        - hreflang link tags
+        - Content analysis (fallback)
+        
+        Args:
+            content_language_header: Content-Language HTTP header value
+            
+        Returns:
+            Dictionary with language detection results:
+            - code: ISO 639-1 language code
+            - region: Region code if available
+            - name: Full language name
+            - confidence: Detection confidence level
+            - source: Detection method used
+            - alternatives: Other available languages (from hreflang)
+            - issues: Language-related SEO issues
+        """
+        detector = LanguageDetector()
+        
+        # Get HTML lang attribute
+        html_tag = self.soup.find('html')
+        html_lang = html_tag.get('lang') if html_tag else None
+        
+        # Get og:locale
+        og_locale_tag = self.soup.find('meta', property='og:locale')
+        og_locale = og_locale_tag.get('content') if og_locale_tag else None
+        
+        # Get hreflang tags
+        hreflang_links = self.soup.find_all('link', attrs={'hreflang': True})
+        hreflang_tags = [
+            {"hreflang": link.get('hreflang'), "href": link.get('href', '')}
+            for link in hreflang_links
+        ]
+        
+        # Get text content for fallback detection
+        text_content = self.extract_text_content()
+        
+        # Detect language
+        result = detector.detect(
+            html_lang=html_lang,
+            content_language=content_language_header,
+            og_locale=og_locale,
+            hreflang_tags=hreflang_tags if hreflang_tags else None,
+            text_content=text_content,
+        )
+        
+        # Add any language issues to the analyzer's issue list
+        for issue in result.get("issues", []):
+            self.issues.append(Issue(
+                issue["severity"],
+                "on_page",
+                issue["code"],
+                issue["message"]
+            ))
+            self.recommendations.append(Recommendation(
+                2 if issue["severity"] == "medium" else 3,
+                "on_page",
+                issue["recommendation"]
+            ))
+        
+        return result

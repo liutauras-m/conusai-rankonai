@@ -10,6 +10,7 @@ from typing import Any
 
 from tasks.base import WorkflowTask
 from services.openai_service import OpenAIService, GrokService
+from utils.language import get_language_context_for_ai
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +39,16 @@ class InsightsTask(WorkflowTask):
         description = self._get_description()
         keywords = self._get_keywords(10)
         scores = self._extract_scores()
+        language_info = self._get_language_info()
+        language_context = get_language_context_for_ai(language_info)
         
-        # Prepare the analysis prompt
+        # Prepare the analysis prompt with language context
         prompt = f"""Analyze this website's AI discoverability and provide strategic insights:
 
 WEBSITE: {self.url}
 BRAND: {brand}
 DESCRIPTION: {description}
+{language_context}
 TOP KEYWORDS: {', '.join(keywords)}
 
 CURRENT SCORES:
@@ -57,8 +61,10 @@ Provide 3-5 specific, actionable insights about:
 1. How AI assistants (ChatGPT, Claude, Perplexity) would perceive this website
 2. Key opportunities to improve AI discoverability
 3. What makes this brand unique and recommendable
+4. Language/localization considerations for AI visibility
 
-Be concise and specific to this website. Format as bullet points."""
+Be concise and specific to this website. Format as bullet points.
+{f'Respond in {language_info.get("name", "English")} if the website is not in English.' if language_info.get("code") and language_info.get("code") != "en" else ''}"""
 
         system_prompt = "You are an AI SEO expert specializing in AI discoverability and LLM optimization. Provide actionable, specific insights."
 

@@ -7,6 +7,9 @@ aiohttp>=3.9.0
 # Modern HTTP/2 client with better compatibility
 httpx[http2]>=0.25.0
 
+# Brotli decompression for compressed responses
+Brotli>=1.1.0
+
 # ==== Advanced Scraping (Optional) ====
 # Browser TLS fingerprinting - bypasses Cloudflare & bot detection
 # Highly recommended for production scraping

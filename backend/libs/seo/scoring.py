@@ -27,6 +27,11 @@ class ScoreWeights:
     
     no_llms_penalty: int = 20
     blocked_bot_penalty: int = 5
+    
+    # Social sharing penalties
+    no_og_penalty: int = 15
+    no_twitter_card_penalty: int = 10
+    no_social_image_penalty: int = 10
 
 
 class ScoreCalculator:
@@ -82,6 +87,7 @@ class ScoreCalculator:
             "content": 100,
             "structured_data": 100,
             "ai_readiness": 100,
+            "social_sharing": 100,
         }
         
         # Deduct based on issues
@@ -98,6 +104,13 @@ class ScoreCalculator:
             scores["ai_readiness"],
             llms_response,
             robots_parser
+        )
+        
+        # Social sharing score (from HTML analyzer's social metadata analysis)
+        social_metadata = html_analyzer.analyze_social_metadata()
+        scores["social_sharing"] = self._calculate_social_sharing_score(
+            scores["social_sharing"],
+            social_metadata
         )
         
         # Ensure non-negative
@@ -151,3 +164,46 @@ class ScoreCalculator:
             score -= blocked_bots * self.weights.blocked_bot_penalty
         
         return score
+    
+    def _calculate_social_sharing_score(
+        self,
+        base_score: int,
+        social_metadata: dict,
+    ) -> int:
+        """
+        Calculate social sharing readiness score.
+        
+        Args:
+            base_score: Starting score
+            social_metadata: Social metadata analysis from HTML analyzer
+            
+        Returns:
+            Adjusted social sharing score
+        """
+        score = base_score
+        
+        og = social_metadata.get("open_graph", {})
+        twitter = social_metadata.get("twitter_card", {})
+        images = social_metadata.get("social_images", [])
+        
+        # Penalize missing Open Graph
+        if not og.get("present"):
+            score -= self.weights.no_og_penalty
+        else:
+            # Penalize missing required OG tags
+            missing_required = og.get("missing_required", [])
+            score -= len(missing_required) * 5
+        
+        # Penalize missing Twitter Card
+        if not twitter.get("present"):
+            score -= self.weights.no_twitter_card_penalty
+        else:
+            # Penalize missing required Twitter tags
+            missing_required = twitter.get("missing_required", [])
+            score -= len(missing_required) * 3
+        
+        # Penalize missing social images
+        if not images:
+            score -= self.weights.no_social_image_penalty
+        
+        return max(0, score)

@@ -436,6 +436,7 @@ async def get_workflow_result(
         signals=result.get("signals", {}),
         keywords=result.get("keywords", {}),
         marketing=result.get("marketing", {}),
+        social=result.get("social", {}),
         ai_summary=result.get("ai_summary", {}),
     )
 
@@ -544,6 +545,174 @@ async def generate_ai_summary(
     await cache.set(cache_key, response, ttl=3600)
     
     return response
+
+
+# =============================================================================
+# Generate Suggestions Endpoint
+# =============================================================================
+
+
+@app.post(
+    "/generate-suggestions",
+    tags=["workflow"],
+    summary="Generate AI Suggestions",
+    description="Generate AI-powered preferences or questions based on analysis data.",
+    responses={
+        200: {"description": "Suggestions generated"},
+        400: {"description": "Invalid request"},
+        500: {"description": "Generation failed"},
+    },
+)
+async def generate_suggestions(
+    request: dict,
+    cache: Cache,
+) -> dict:
+    """
+    Generate AI-powered preference options or strategic questions.
+    
+    Args:
+        request: Contains 'analysis' (SEO data) and 'type' ('preferences' or 'questions')
+    
+    Returns:
+        Dictionary with success status and generated data
+    """
+    import hashlib
+    import json
+    
+    from services.openai_service import OpenAIService
+    
+    analysis = request.get("analysis")
+    suggestion_type = request.get("type", "preferences")
+    
+    if not analysis:
+        raise HTTPException(status_code=400, detail="analysis is required")
+    
+    if suggestion_type not in ("preferences", "questions"):
+        raise HTTPException(status_code=400, detail="type must be 'preferences' or 'questions'")
+    
+    # Generate cache key
+    analysis_hash = hashlib.md5(
+        json.dumps(analysis, sort_keys=True).encode()
+    ).hexdigest()[:16]
+    cache_key = f"suggestions:{suggestion_type}:{analysis_hash}"
+    
+    # Check cache
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+    
+    # Extract context from analysis
+    metadata = analysis.get("metadata", {})
+    content = analysis.get("content", {})
+    llm_context = analysis.get("llm_context", {})
+    scores = analysis.get("scores", {})
+    url = analysis.get("url", "")
+    
+    # Get brand name
+    title_data = metadata.get("title", {})
+    if isinstance(title_data, dict):
+        brand = title_data.get("value") or ""
+    else:
+        brand = str(title_data) if title_data else ""
+    
+    if not brand and url:
+        try:
+            from urllib.parse import urlparse
+            brand = urlparse(url).hostname or "the brand"
+        except Exception:
+            brand = "the brand"
+    
+    # Get description
+    desc_data = metadata.get("description", {})
+    if isinstance(desc_data, dict):
+        description = desc_data.get("value") or ""
+    else:
+        description = str(desc_data) if desc_data else ""
+    
+    # Get keywords
+    keywords = llm_context.get("top_keywords", [])[:10]
+    if not keywords:
+        kw_freq = content.get("keywords_frequency", [])
+        keywords = [k.get("keyword", "") for k in kw_freq[:10] if isinstance(k, dict)]
+    
+    # Build prompts
+    if suggestion_type == "preferences":
+        system_prompt = "You are an AI SEO expert. Generate user preference options based on SEO analysis. Return valid JSON only."
+        user_prompt = f"""Based on this website analysis, generate 4 personalized preference options that users can select to focus their AI optimization efforts.
+
+WEBSITE CONTEXT:
+- Brand: {brand}
+- Description: {description}
+- Top Keywords: {', '.join(keywords)}
+- Current Scores: {json.dumps(scores)}
+
+Generate 4 preference options as a JSON array. Each option should be relevant to this specific website's content and goals.
+
+Format:
+[
+  {{
+    "id": "unique_snake_case_id",
+    "label": "Short Label (2-3 words)",
+    "detail": "One sentence explaining how this preference helps AI recommend this brand."
+  }}
+]
+
+Return ONLY the JSON array, no markdown or explanation."""
+    else:
+        system_prompt = "You are an AI brand strategist. Generate questions users should answer to improve AI discoverability. Return valid JSON only."
+        user_prompt = f"""Based on this website analysis, generate 5 strategic questions that will help improve how AI assistants recommend this brand.
+
+WEBSITE CONTEXT:
+- Brand: {brand}
+- Description: {description}
+- Top Keywords: {', '.join(keywords)}
+
+Generate questions as a JSON array of strings. Questions should:
+1. Be specific to this brand/website
+2. Help craft FAQs and AI-friendly content
+3. Focus on what makes this brand recommendable
+
+Format:
+["Question 1?", "Question 2?", "Question 3?", "Question 4?", "Question 5?"]
+
+Return ONLY the JSON array, no markdown or explanation."""
+    
+    # Call OpenAI
+    openai = OpenAIService()
+    
+    if not openai.is_configured:
+        raise HTTPException(status_code=500, detail="OpenAI not configured")
+    
+    try:
+        # complete_json returns parsed JSON directly (list or dict)
+        data = await openai.complete_json(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.7,
+        )
+        
+        # Validate we got the expected format
+        if not isinstance(data, list):
+            logger.warning(f"Expected list from OpenAI, got {type(data)}")
+            data = []
+        
+        response = {
+            "success": True,
+            "data": data,
+            "type": suggestion_type,
+        }
+        
+        # Cache for 1 hour
+        await cache.set(cache_key, response, ttl=3600)
+        
+        return response
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse OpenAI response: {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse AI response")
+    except Exception as e:
+        logger.error(f"Suggestion generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # =============================================================================

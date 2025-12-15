@@ -10,6 +10,7 @@ from typing import Any
 
 from tasks.base import WorkflowTask
 from services.openai_service import OpenAIService
+from utils.language import get_language_context_for_ai
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +103,8 @@ class KeywordsTask(WorkflowTask):
         brand = self._get_brand_name()
         description = self._get_description()
         keywords = self._get_keywords(15)
+        language_info = self._get_language_info()
+        language_context = get_language_context_for_ai(language_info)
         
         content = self._extract_content()
         bigrams = [b.get("phrase", "") for b in content.get("top_bigrams", [])[:5]]
@@ -115,6 +118,7 @@ Return valid JSON only, no markdown formatting."""
 WEBSITE: {self.url}
 BRAND: {brand}
 DESCRIPTION: {description}
+{language_context}
 
 CURRENT KEYWORDS (extracted from page):
 - Top keywords: {', '.join(keywords)}

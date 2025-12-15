@@ -182,6 +182,7 @@ class WorkflowResultResponse(BaseModel):
                 "signals": {},
                 "keywords": {},
                 "marketing": {},
+                "social": {},
             }
         }
     )
@@ -200,6 +201,7 @@ class WorkflowResultResponse(BaseModel):
     keywords: dict[str, Any] = Field(default_factory=dict, description="Keyword analysis")
     marketing: dict[str, Any] = Field(default_factory=dict, description="Marketing recommendations")
     ai_summary: dict[str, Any] = Field(default_factory=dict, description="AI-generated summary report")
+    social: dict[str, Any] = Field(default_factory=dict, description="Social sharing analysis")
     
     # Error info
     error: Optional[str] = Field(default=None, description="Error message if failed")

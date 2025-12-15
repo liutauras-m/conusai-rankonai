@@ -163,13 +163,13 @@ Contact Form: [https://www.conusai.com/#contact-form](https://www.conusai.com/#c
 
 To make things clear:
 
-✅ **Free to use** — No payment required  
-✅ **No data stored** — We don't keep your URLs or results  
-✅ **No account needed** — Just enter a URL and go  
-✅ **Your responsibility** — Review any files before using them  
-⚠️ **Estimates only** — Our scores are independent assessments, not official metrics  
-⚠️ **No guarantees** — We can't promise improved AI visibility  
-⚠️ **Use at your own risk** — We're not liable for outcomes  
+✅ **Free to use** - No payment required  
+✅ **No data stored** - We don't keep your URLs or results  
+✅ **No account needed** - Just enter a URL and go  
+✅ **Your responsibility** - Review any files before using them  
+⚠️ **Estimates only** - Our scores are independent assessments, not official metrics  
+⚠️ **No guarantees** - We can't promise improved AI visibility  
+⚠️ **Use at your own risk** - We're not liable for outcomes  
 
 ---
 

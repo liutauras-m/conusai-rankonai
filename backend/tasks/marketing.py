@@ -10,6 +10,7 @@ from typing import Any
 
 from tasks.base import WorkflowTask
 from services.openai_service import OpenAIService
+from utils.language import get_language_context_for_ai
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +59,17 @@ class MarketingTask(WorkflowTask):
         description = self._get_description()
         keywords = self._get_keywords(15)
         scores = self._extract_scores()
+        language_info = self._get_language_info()
+        language_context = get_language_context_for_ai(language_info)
+        language_name = language_info.get("name", "English")
         
         content = self._extract_content()
         bigrams = [b.get("phrase", "") for b in content.get("top_bigrams", [])[:5]]
         trigrams = [t.get("phrase", "") for t in content.get("top_trigrams", [])[:3]]
         
-        system_prompt = """You are an expert content marketing strategist specializing in SEO and social media marketing. 
+        system_prompt = f"""You are an expert content marketing strategist specializing in SEO and social media marketing. 
 Generate actionable marketing recommendations based on SEO analysis data.
+{f'Generate all content in {language_name}.' if language_info.get("code") and language_info.get("code") != "en" else ''}
 Return valid JSON only, no markdown formatting or code blocks."""
 
         user_prompt = f"""Based on this comprehensive SEO analysis, generate content marketing recommendations:
@@ -75,6 +80,7 @@ WEBSITE ANALYSIS:
 - Description: {description}
 - Word Count: {content.get("word_count", "N/A")}
 - Current SEO Scores: {json.dumps(scores)}
+{language_context}
 
 EXTRACTED KEYWORDS (from page analysis):
 - Top keywords: {", ".join(keywords)}

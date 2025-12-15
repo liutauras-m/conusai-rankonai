@@ -75,7 +75,7 @@ export default function ContentMarketingPage() {
         </div>
         
         <div className="grid gap-3 sm:grid-cols-2">
-          {marketingData.targetKeywords.map((kw) => (
+          {(marketingData.targetKeywords ?? []).map((kw) => (
             <div
               key={kw.keyword}
               className="group rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-primary/20"
@@ -105,7 +105,7 @@ export default function ContentMarketingPage() {
         </div>
         
         <div className="grid gap-4 lg:grid-cols-3">
-          {marketingData.socialPosts.map((post) => {
+          {(marketingData.socialPosts ?? []).map((post) => {
             const Icon = PLATFORM_ICONS[post.platform] || Facebook
             const fullPost = formatPostWithHashtags(post.content, post.hashtags)
 
@@ -174,7 +174,7 @@ export default function ContentMarketingPage() {
         </div>
         
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {marketingData.contentIdeas.map((idea, idx) => (
+          {(marketingData.contentIdeas ?? []).map((idea, idx) => (
             <div
               key={idea}
               className="flex items-start gap-3 rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-primary/20"

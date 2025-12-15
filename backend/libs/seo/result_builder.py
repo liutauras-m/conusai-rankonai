@@ -49,6 +49,9 @@ class ResultBuilder:
         Returns:
             Complete analysis result dictionary
         """
+        # Get Content-Language header for language detection
+        content_language = main_response["headers"].get("Content-Language")
+        
         return {
             "url": self.url,
             "timestamp": datetime.now().isoformat(),
@@ -57,11 +60,13 @@ class ResultBuilder:
             ),
             "scores": scores,
             "metadata": html_analyzer.analyze_meta_tags(),
+            "language": html_analyzer.analyze_language(content_language),
             "headings": html_analyzer.analyze_headings(),
             "images": html_analyzer.analyze_images(),
             "links": html_analyzer.analyze_links(),
             "content": self._build_content_section(content_analyzer),
             "structured_data": html_analyzer.analyze_structured_data(),
+            "social": html_analyzer.analyze_social_metadata(),
             "technical": self._build_technical_section(main_response),
             "ai_indexing": self._build_ai_indexing_section(
                 robots_parser, robots_response, llms_response, sitemap_response

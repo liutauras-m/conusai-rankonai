@@ -19,6 +19,7 @@ from .http import (
 )
 from .text import ContentAnalyzer
 from .constants import AI_BOTS
+from .language import LanguageDetector, get_language_context_for_ai
 
 __all__ = [
     # HTTP fetchers
@@ -32,6 +33,9 @@ __all__ = [
     "BROWSER_HEADERS",
     # Text analysis
     "ContentAnalyzer",
+    # Language detection
+    "LanguageDetector",
+    "get_language_context_for_ai",
     # Constants
     "AI_BOTS",
 ]

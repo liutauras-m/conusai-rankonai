@@ -84,12 +84,13 @@ async def run_workflow(job_id: str, url: str) -> dict[str, Any]:
         
         logger.info(f"[{job_id}] Overview complete, starting parallel tasks")
         
-        # Step 2: Parallel tasks (includes AI Summary)
+        # Step 2: Parallel tasks (includes AI Summary and Social)
         from tasks.insights import InsightsTask
         from tasks.signals import SignalsTask
         from tasks.keywords import KeywordsTask
         from tasks.marketing import MarketingTask
         from tasks.ai_summary import AISummaryTask
+        from tasks.social import SocialTask
         
         parallel_tasks = [
             (WorkflowStep.INSIGHTS, InsightsTask(url=url, overview_data=overview_data)),
@@ -97,6 +98,7 @@ async def run_workflow(job_id: str, url: str) -> dict[str, Any]:
             (WorkflowStep.KEYWORDS, KeywordsTask(url=url, overview_data=overview_data)),
             (WorkflowStep.MARKETING, MarketingTask(url=url, overview_data=overview_data)),
             ("ai_summary", AISummaryTask(url=url, overview_data=overview_data)),
+            ("social", SocialTask(url=url, overview_data=overview_data)),
         ]
         
         # Run all parallel tasks
@@ -117,6 +119,7 @@ async def run_workflow(job_id: str, url: str) -> dict[str, Any]:
             "keywords": {},
             "marketing": {},
             "ai_summary": {},
+            "social": {},
         }
         
         for item in parallel_results:

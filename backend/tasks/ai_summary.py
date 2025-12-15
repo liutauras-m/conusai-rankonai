@@ -227,7 +227,7 @@ Generate a JSON response with this exact structure:
 }}"""
 
         try:
-            response = await openai.chat_completion(
+            response = await openai.complete(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 temperature=0.7,

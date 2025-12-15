@@ -734,7 +734,7 @@ export default function Home() {
                 <p className="mx-auto mt-4 max-w-lg text-muted-foreground leading-relaxed">
                   More people are asking ChatGPT, Claude, and Perplexity for
                   recommendations instead of searching on Google. When someone asks
-                  &quot;What&apos;s the best [your category]?&quot; — will your brand show up?
+                  &quot;What&apos;s the best [your category]?&quot; - will your brand show up?
                 </p>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm">
                   <div className="flex items-center gap-2 rounded-full bg-green-500/10 px-4 py-2 text-green-600 dark:text-green-400">

@@ -4,6 +4,8 @@ LLM Context Generator.
 Generates context summaries and prompts for LLM analysis.
 """
 
+from utils.language import get_language_context_for_ai
+
 
 class LLMContextGenerator:
     """
@@ -40,6 +42,7 @@ class LLMContextGenerator:
     
     def _extract_key_metrics(self, result: dict) -> dict:
         """Extract key metrics from analysis result."""
+        language_info = result.get("language", {})
         return {
             "has_title": result["metadata"]["title"]["value"] is not None,
             "has_meta_description": result["metadata"]["description"]["value"] is not None,
@@ -50,6 +53,10 @@ class LLMContextGenerator:
             "is_https": result["technical"]["https"],
             "has_llms_txt": result["ai_indexing"]["llms_txt"]["present"],
             "has_sitemap": result["ai_indexing"]["sitemap_xml"]["present"],
+            "language_code": language_info.get("code"),
+            "language_name": language_info.get("name"),
+            "language_confidence": language_info.get("confidence"),
+            "is_multilingual": len(language_info.get("alternatives", [])) > 0,
         }
     
     def generate_improvement_prompt(self, result: dict) -> str:
@@ -72,10 +79,15 @@ class LLMContextGenerator:
             for k in result["content"]["keywords_frequency"][:5]
         ])
         
+        # Get language context
+        language_info = result.get("language", {})
+        language_context = get_language_context_for_ai(language_info)
+        
         return f"""Analyze this SEO report and provide specific improvement recommendations:
 
 URL: {result['url']}
 Overall Score: {result['scores']['overall']}/100
+{language_context}
 
 Current Issues:
 {issues_summary}
@@ -91,4 +103,5 @@ Please provide:
 2. Content optimization suggestions based on keywords
 3. Structured data recommendations
 4. AI indexing optimization tips
+5. Language-specific SEO recommendations (if applicable)
 """

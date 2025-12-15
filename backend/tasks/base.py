@@ -138,3 +138,7 @@ class WorkflowTask(ABC):
             keywords = [k.get("keyword", "") for k in freq_keywords[:limit]]
         
         return keywords
+    
+    def _get_language_info(self) -> dict:
+        """Helper to get language detection info from overview data."""
+        return self.overview_data.get("language", {})

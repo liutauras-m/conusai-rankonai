@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation"
 import type { Route } from "next"
 import Link from "next/link"
 import Image from "next/image"
-import { BarChart3, Compass, Radio, Search, Megaphone, ChevronRight, Mail } from "lucide-react"
+import { BarChart3, Compass, Radio, Search, Megaphone, Share2, ChevronRight, Mail } from "lucide-react"
 
 import { ReportProvider, useReportContext } from "./report-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +19,7 @@ const navItems = [
   { href: "/report/signals", label: "Signals", icon: Radio },
   { href: "/report/keywords", label: "Keywords", icon: Search },
   { href: "/report/marketing", label: "Marketing", icon: Megaphone },
+  { href: "/report/social", label: "Social", icon: Share2 },
 ]
 
 function ReportLayoutShell({ children }: { children: React.ReactNode }) {

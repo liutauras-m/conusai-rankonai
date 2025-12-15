@@ -53,6 +53,7 @@ type AnalysisReport = {
     content_type?: string
     server?: string
   }
+  social?: SocialData
 }
 
 type InsightResponse = {
@@ -112,6 +113,78 @@ type MarketingData = {
   contentIdeas: string[]
 }
 
+type SocialTagIssue = {
+  code?: string
+  severity?: "low" | "medium" | "high"
+  message: string
+}
+
+type SocialMetadataSection = {
+  present: boolean
+  tags: Record<string, string>
+  missing_required: string[]
+  missing_recommended: string[]
+  issues: SocialTagIssue[]
+  card_type?: string
+}
+
+type SocialMetadata = {
+  open_graph: SocialMetadataSection
+  twitter_card: SocialMetadataSection
+}
+
+type SocialImage = {
+  url: string
+  source: string
+  width?: number
+  height?: number
+  alt?: string
+  type?: string
+}
+
+type SocialPlatformStatus = {
+  score: number
+  status: "optimal" | "good" | "needs_improvement" | "poor"
+  issues: string[]
+}
+
+type SocialImprovement = {
+  priority: "high" | "medium" | "low"
+  category: "open_graph" | "twitter_card" | "image" | "general"
+  issue: string
+  action: string
+  impact: string
+}
+
+type SocialRecommendations = {
+  summary?: string
+  improvements: SocialImprovement[]
+  best_practices: string[]
+  sample_tags: {
+    open_graph?: string[]
+    twitter_card?: string[]
+  }
+}
+
+type SocialPreview = {
+  title: string
+  description: string
+  image?: string
+  image_alt?: string
+  site_name?: string
+  url?: string
+}
+
+type SocialData = {
+  metadata: SocialMetadata
+  images: SocialImage[]
+  platforms: Record<string, SocialPlatformStatus>
+  score: number
+  issues: SocialTagIssue[]
+  recommendations: SocialRecommendations
+  preview: SocialPreview
+}
+
 type SignalsData = {
   robots_txt?: {
     present?: boolean
@@ -153,6 +226,7 @@ type WorkflowResultData = {
   signals?: SignalsData
   keywords?: KeywordsData
   marketing?: MarketingData
+  social?: SocialData
   ai_summary?: {
     markdown?: string
     structured?: Record<string, unknown>
@@ -205,6 +279,7 @@ type ReportContextValue = {
   workflowData: WorkflowResultData | null
   keywordsData: KeywordsData | null
   signalsData: SignalsData | null
+  socialData: SocialData | null
 }
 
 const ReportContext = createContext<ReportContextValue | null>(null)
@@ -232,6 +307,7 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
   const [marketingLoading, setMarketingLoading] = useState(false)
   const [keywordsData, setKeywordsData] = useState<KeywordsData | null>(null)
   const [signalsData, setSignalsData] = useState<SignalsData | null>(null)
+  const [socialData, setSocialData] = useState<SocialData | null>(null)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -276,6 +352,7 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
       setMarketingData(null)
       setKeywordsData(null)
       setSignalsData(null)
+      setSocialData(null)
       return
     }
 
@@ -326,6 +403,12 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
         // Set marketing from workflow
         if (data.marketing) {
           setMarketingData(data.marketing)
+        }
+
+        if (data.social) {
+          setSocialData(data.social)
+        } else {
+          setSocialData(null)
         }
         
         setStatus("success")
@@ -554,6 +637,7 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
     workflowData,
     keywordsData,
     signalsData,
+    socialData,
   }
 
   return <ReportContext.Provider value={value}>{children}</ReportContext.Provider>

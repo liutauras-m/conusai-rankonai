@@ -29,6 +29,14 @@ class SignalsTask(WorkflowTask):
     TASK_NAME = "signals"
     REQUIRES_OVERVIEW = True
     
+    def _get_canonical_value(self, canonical: Any) -> str | None:
+        """Extract canonical URL value regardless of format (str or dict)."""
+        if isinstance(canonical, str):
+            return canonical
+        if isinstance(canonical, dict):
+            return canonical.get("value")
+        return None
+    
     async def execute(self) -> dict[str, Any]:
         """
         Extract and analyze visibility signals.
@@ -177,7 +185,7 @@ class SignalsTask(WorkflowTask):
                 "is_accessible": (readability.get("flesch_reading_ease") or 0) >= 60,
             },
             "semantic": {
-                "has_canonical": bool((metadata.get("canonical") or {}).get("value")),
+                "has_canonical": bool(self._get_canonical_value(metadata.get("canonical"))),
                 "has_lang": bool(metadata.get("language")),
                 "language": metadata.get("language"),
             },

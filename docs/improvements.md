@@ -9,10 +9,10 @@
 | Metric | Before | After | Change |
 |--------|--------|-------|--------|
 | **Overall Score** | 94 | **97** | **+3** ✅ |
-| Technical | 100 | 100 | — |
-| On-Page | 100 | 100 | — |
-| Content | 90 | 90 | — |
-| Structured Data | 100 | 100 | — |
+| Technical | 100 | 100 | - |
+| On-Page | 100 | 100 | - |
+| Content | 90 | 90 | - |
+| Structured Data | 100 | 100 | - |
 | **AI Readiness** | 80 | **95** | **+15** ✅ |
 
 ---
@@ -63,7 +63,7 @@ AI automation, workflow automation, ConusAI, no-code AI workflows, RAG-powered i
 | Attribute | Before | After |
 |-----------|--------|-------|
 | Present | ❌ false | ✅ true |
-| Content | — | "# ConusAI - AI-Powered Workflow Automation..." |
+| Content | - | "# ConusAI - AI-Powered Workflow Automation..." |
 
 ### 5. AI Bots in robots.txt (Explicitly Configured)
 

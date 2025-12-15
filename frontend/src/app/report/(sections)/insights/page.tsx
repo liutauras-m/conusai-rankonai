@@ -124,10 +124,10 @@ export default function InsightsPage() {
               
               <div className="flex items-center justify-between border-border/50 border-t pt-2">
                 <p className="text-muted-foreground text-xs">
-                  {insights.data?.result?.models_successful}/{insights.data?.result?.models_queried} models responded
+                  {insights.data?.models_successful}/{insights.data?.models_queried} models responded
                 </p>
                 <p className="text-muted-foreground text-xs tabular-nums">
-                  Total: {insights.data?.result?.total_time_ms ?? "—"}ms
+                  Total: {insights.data?.total_time_ms ?? "-"}ms
                 </p>
               </div>
             </div>
