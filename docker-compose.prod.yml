@@ -6,7 +6,8 @@ services:
     image: ghcr.io/liutauras-m/conusai-rankonai-frontend:latest
     environment:
       - NODE_ENV=production
-      - BACKEND_URL=http://backend:8000
+      # Use full Swarm service name: <stack>_<service>
+      - BACKEND_URL=http://rankon_backend:8000
       - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
       - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
@@ -14,12 +15,6 @@ services:
     networks:
       - rankon
       - dokploy-network
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
     deploy:
       replicas: 1
       placement:
@@ -49,7 +44,8 @@ services:
   backend:
     image: ghcr.io/liutauras-m/conusai-rankonai-backend:latest
     environment:
-      - REDIS_URL=redis://redis:6379
+      # Use full Swarm service name for Redis
+      - REDIS_URL=redis://rankon_redis:6379
       - MAX_CONCURRENT_ANALYSES=5
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - XAI_API_KEY=${XAI_API_KEY}
@@ -119,7 +115,8 @@ services:
     command: python -m taskiq worker tasks.taskiq_worker:broker --fs-discover
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=redis://redis:6379
+      # Use full Swarm service name for Redis
+      - REDIS_URL=redis://rankon_redis:6379
       - MAX_CONCURRENT_ANALYSES=5
       - CACHE_TTL=3600
       - OPENAI_API_KEY=${OPENAI_API_KEY}
