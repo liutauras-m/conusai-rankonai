@@ -32,7 +32,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.swarm.network=dokploy-network
-        # HTTP Router - redirect to HTTPS (use existing @file middleware)
+        # HTTP Router - redirect to HTTPS
         - traefik.http.routers.rankon.rule=Host(`rankon.cloud.conusai.com`)
         - traefik.http.routers.rankon.entrypoints=web
         - traefik.http.routers.rankon.middlewares=redirect-to-https@file
@@ -84,6 +84,9 @@ services:
         - traefik.http.routers.rankon-api.tls=true
         - traefik.http.routers.rankon-api.tls.certresolver=letsencrypt
         - traefik.http.routers.rankon-api.service=rankon-api
+        # StripPrefix middleware - removes /api before forwarding to backend
+        - traefik.http.middlewares.rankon-stripapi.stripprefix.prefixes=/api
+        - traefik.http.routers.rankon-api.middlewares=rankon-stripapi@swarm
         # Service
         - traefik.http.services.rankon-api.loadbalancer.server.port=8000
 
