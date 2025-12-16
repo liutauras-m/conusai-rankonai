@@ -18,16 +18,29 @@ def normalize_url(url: str) -> str:
     """
     Normalize URL for consistent cache keys.
     
-    - Removes www. prefix
-    - Removes trailing slash
-    - Lowercases the domain
+    Handles:
+    - Missing scheme (adds https://)
+    - www. prefix removal
+    - Trailing slash removal
+    - Domain lowercasing
+    - Fragment removal
+    - Default port removal
     
     Example:
+        manomenulis.lt -> https://manomenulis.lt
         https://www.conusai.com/ -> https://conusai.com
         https://CONUSAI.COM/page/ -> https://conusai.com/page
+        http://example.com:80/path -> http://example.com/path
     """
     if not url:
         return url
+    
+    # Strip whitespace
+    url = url.strip()
+    
+    # Add scheme if missing
+    if not url.startswith(("http://", "https://")):
+        url = f"https://{url}"
     
     # Parse the URL
     parsed = urlparse(url)
@@ -37,11 +50,17 @@ def normalize_url(url: str) -> str:
     if netloc.startswith("www."):
         netloc = netloc[4:]
     
+    # Remove default ports
+    if netloc.endswith(":80") and parsed.scheme == "http":
+        netloc = netloc[:-3]
+    elif netloc.endswith(":443") and parsed.scheme == "https":
+        netloc = netloc[:-4]
+    
     # Rebuild URL with normalized parts
     # Keep path but remove trailing slash (except for root)
     path = parsed.path.rstrip("/") or ""
     
-    # Reconstruct URL
+    # Reconstruct URL (without fragment)
     normalized = f"{parsed.scheme}://{netloc}{path}"
     
     # Add query string if present

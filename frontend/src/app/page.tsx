@@ -26,6 +26,56 @@ import { cn } from "@/lib/utils"
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
 const POLLING_INTERVAL = 2000 // 2 seconds
 
+/**
+ * Normalize URL for consistent cache key matching.
+ * Must match backend's normalize_url function.
+ */
+function normalizeUrl(url: string): string {
+	if (!url) return url
+
+	let normalized = url.trim()
+
+	// Add scheme if missing
+	if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
+		normalized = `https://${normalized}`
+	}
+
+	try {
+		const parsed = new URL(normalized)
+
+		// Lowercase hostname and remove www.
+		let hostname = parsed.hostname.toLowerCase()
+		if (hostname.startsWith("www.")) {
+			hostname = hostname.slice(4)
+		}
+
+		// Remove default ports
+		let port = parsed.port
+		if ((parsed.protocol === "http:" && port === "80") || 
+		    (parsed.protocol === "https:" && port === "443")) {
+			port = ""
+		}
+
+		// Remove trailing slash from path (except root)
+		let path = parsed.pathname
+		if (path !== "/" && path.endsWith("/")) {
+			path = path.slice(0, -1)
+		} else if (path === "/") {
+			path = ""
+		}
+
+		// Reconstruct URL (without fragment)
+		let result = `${parsed.protocol}//${hostname}`
+		if (port) result += `:${port}`
+		result += path
+		if (parsed.search) result += parsed.search
+
+		return result
+	} catch {
+		return normalized
+	}
+}
+
 // AI Platforms with their logos
 const AI_PLATFORMS = [
 	{ name: "ChatGPT", logo: "/logos/platforms/chatgpt.png" },
@@ -159,15 +209,12 @@ export default function Home() {
 			return
 		}
 
-		// Normalize URL
-		let normalizedUrl = trimmedUrl
-		if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
-			normalizedUrl = `https://${normalizedUrl}`
-		}
+		// Normalize URL using the shared function
+		const normalizedUrlValue = normalizeUrl(trimmedUrl)
 
 		setWorkflow({
 			jobId: null,
-			normalizedUrl: normalizedUrl,
+			normalizedUrl: normalizedUrlValue,
 			status: "starting",
 			progress: 0,
 			currentStep: null,
@@ -179,7 +226,7 @@ export default function Home() {
 			const response = await fetch("/api/workflow", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ url: normalizedUrl, captchaToken }),
+				body: JSON.stringify({ url: normalizedUrlValue, captchaToken }),
 			})
 
 			if (!response.ok) {
@@ -199,18 +246,18 @@ export default function Home() {
 			// If cached, navigate immediately
 			if (data.cached && data.status === "completed") {
 				// Navigate with only URL (no jobId) - cache lookup is URL-based
-				const params = new URLSearchParams({ url: normalizedUrl })
+				const params = new URLSearchParams({ url: normalizedUrlValue })
 				router.push(`/report/overview?${params.toString()}`)
 				return
 			}
 
 			// Start polling for status
 			pollingRef.current = setInterval(() => {
-				pollStatus(data.job_id, normalizedUrl)
+				pollStatus(data.job_id, normalizedUrlValue)
 			}, POLLING_INTERVAL)
 
 			// Also poll immediately
-			pollStatus(data.job_id, normalizedUrl)
+			pollStatus(data.job_id, normalizedUrlValue)
 		} catch (error) {
 			setWorkflow((prev) => ({
 				...prev,

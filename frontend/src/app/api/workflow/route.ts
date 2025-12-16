@@ -6,6 +6,56 @@ export const maxDuration = 60
 const getTurnstileSecretKey = () => process.env.TURNSTILE_SECRET_KEY
 const getBackendUrl = () => process.env.BACKEND_URL || "http://localhost:8000"
 
+/**
+ * Normalize URL for consistent cache key matching.
+ * Must match backend's normalize_url function.
+ */
+function normalizeUrl(url: string): string {
+	if (!url) return url
+
+	let normalized = url.trim()
+
+	// Add scheme if missing
+	if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
+		normalized = `https://${normalized}`
+	}
+
+	try {
+		const parsed = new URL(normalized)
+
+		// Lowercase hostname and remove www.
+		let hostname = parsed.hostname.toLowerCase()
+		if (hostname.startsWith("www.")) {
+			hostname = hostname.slice(4)
+		}
+
+		// Remove default ports
+		let port = parsed.port
+		if ((parsed.protocol === "http:" && port === "80") || 
+		    (parsed.protocol === "https:" && port === "443")) {
+			port = ""
+		}
+
+		// Remove trailing slash from path (except root)
+		let path = parsed.pathname
+		if (path !== "/" && path.endsWith("/")) {
+			path = path.slice(0, -1)
+		} else if (path === "/") {
+			path = ""
+		}
+
+		// Reconstruct URL (without fragment)
+		let result = `${parsed.protocol}//${hostname}`
+		if (port) result += `:${port}`
+		result += path
+		if (parsed.search) result += parsed.search
+
+		return result
+	} catch {
+		return normalized
+	}
+}
+
 // Verify Cloudflare Turnstile CAPTCHA token
 async function verifyCaptcha(token: string, ip: string): Promise<boolean> {
 	const secretKey = getTurnstileSecretKey()
@@ -123,7 +173,9 @@ export async function GET(request: NextRequest) {
 
 		// If URL is provided (no jobId), fetch by URL
 		if (url && !jobId) {
-			const endpoint = `${backendUrl}/workflow/by-url?url=${encodeURIComponent(url)}`
+			// Normalize URL to match backend's cache key format
+			const normalizedUrl = normalizeUrl(url)
+			const endpoint = `${backendUrl}/workflow/by-url?url=${encodeURIComponent(normalizedUrl)}`
 			const response = await fetch(endpoint)
 
 			if (!response.ok) {
