@@ -11,6 +11,9 @@ export default async function ReportIndexPage({
 
 	const params = new URLSearchParams()
 	for (const [key, value] of Object.entries(resolvedParams)) {
+		// Skip jobId - URLs should be shareable without job reference
+		if (key === "jobId") continue
+		
 		if (Array.isArray(value)) {
 			for (const entry of value) {
 				params.append(key, entry)

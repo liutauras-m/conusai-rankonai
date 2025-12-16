@@ -69,7 +69,15 @@ function ReportLayoutShell({ children }: { children: React.ReactNode }) {
 
 	const handleCopyLink = async () => {
 		try {
-			await navigator.clipboard.writeText(window.location.href)
+			// Generate clean shareable URL with only 'url' param (no jobId)
+			const urlParam = searchParams.get("url")
+			if (urlParam) {
+				const cleanParams = new URLSearchParams({ url: urlParam })
+				const cleanUrl = `${window.location.origin}${window.location.pathname}?${cleanParams.toString()}`
+				await navigator.clipboard.writeText(cleanUrl)
+			} else {
+				await navigator.clipboard.writeText(window.location.href)
+			}
 			setCopied(true)
 			setTimeout(() => setCopied(false), 2000)
 		} catch (err) {

@@ -442,6 +442,72 @@ async def get_workflow_result(
     )
 
 
+@app.get(
+    "/workflow/by-url",
+    response_model=WorkflowResultResponse,
+    tags=["workflow"],
+    summary="Get Workflow Result by URL",
+    description="Get cached workflow result for a URL. URL is normalized (www removed, trailing slash removed).",
+    responses={
+        200: {"description": "Cached workflow result"},
+        404: {"description": "No cached result for URL", "model": ErrorResponse},
+    },
+)
+async def get_workflow_result_by_url(
+    url: str,
+    workflow: Workflow,
+) -> WorkflowResultResponse:
+    """
+    Get cached workflow results by URL.
+    
+    URL is normalized before lookup:
+    - www. prefix is removed
+    - Trailing slash is removed
+    - Domain is lowercased
+    
+    Example: Both https://www.conusai.com/ and https://conusai.com will match.
+    """
+    from services.cache_service import normalize_url
+    
+    normalized_url = normalize_url(url)
+    cached_result = await workflow.get_cached_result(normalized_url)
+    
+    if not cached_result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No cached result for URL: {url}",
+        )
+    
+    # Extract scores
+    scores_data = cached_result.get("overview", {}).get("scores") or cached_result.get("scores", {})
+    scores = None
+    if scores_data:
+        scores = ScoresResponse(
+            overall=scores_data.get("overall", 0),
+            technical=scores_data.get("technical", 0),
+            on_page=scores_data.get("on_page", 0),
+            content=scores_data.get("content", 0),
+            structured_data=scores_data.get("structured_data", 0),
+            ai_readiness=scores_data.get("ai_readiness", 0),
+        )
+    
+    return WorkflowResultResponse(
+        job_id=None,
+        url=normalized_url,
+        status=JobStatusEnum.COMPLETED,
+        cached=True,
+        timestamp=cached_result.get("timestamp"),
+        scores=scores,
+        overview=cached_result.get("overview", {}),
+        insights=cached_result.get("insights", {}),
+        signals=cached_result.get("signals", {}),
+        keywords=cached_result.get("keywords", {}),
+        marketing=cached_result.get("marketing", {}),
+        social=cached_result.get("social", {}),
+        ai_summary=cached_result.get("ai_summary", {}),
+    )
+
+
 @app.delete(
     "/workflow/{job_id}",
     tags=["workflow"],

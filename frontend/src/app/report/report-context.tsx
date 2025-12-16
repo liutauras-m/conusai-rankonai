@@ -388,10 +388,10 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
 		window.localStorage.setItem("rank-on-ai-preferences", JSON.stringify(preferences))
 	}, [preferences, mounted])
 
-	// Fetch workflow result when jobId is available
+	// Fetch workflow result when URL is available (URL-based lookup, no jobId needed)
 	useEffect(() => {
-		if (!jobId) {
-			// Reset state if no jobId
+		if (!queryUrl) {
+			// Reset state if no URL
 			setWorkflowData(null)
 			setAnalysis(null)
 			setStatus("idle")
@@ -408,7 +408,12 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
 		setStatus("loading")
 		setError(null)
 
-		fetch(`/api/workflow?jobId=${jobId}&result=true`, {
+		// Fetch by URL (jobId-based lookup is legacy fallback)
+		const fetchUrl = jobId
+			? `/api/workflow?jobId=${jobId}&result=true`
+			: `/api/workflow?url=${encodeURIComponent(queryUrl)}`
+
+		fetch(fetchUrl, {
 			signal: controller.signal,
 		})
 			.then(async (res) => {
@@ -476,6 +481,13 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
 				}
 
 				setStatus("success")
+
+				// Clean up URL: remove jobId if present, keep only 'url' param
+				if (jobId && queryUrl) {
+					const cleanParams = new URLSearchParams({ url: queryUrl })
+					const cleanUrl = `${window.location.pathname}?${cleanParams.toString()}`
+					window.history.replaceState(null, "", cleanUrl)
+				}
 			})
 			.catch((fetchError) => {
 				if (controller.signal.aborted) return
@@ -484,7 +496,7 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
 			})
 
 		return () => controller.abort()
-	}, [jobId])
+	}, [queryUrl, jobId])
 
 	// Fetch AI-generated preference options when analysis is ready
 	useEffect(() => {
@@ -716,9 +728,9 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
 	const queryString = useMemo(() => {
 		const params = new URLSearchParams()
 		if (queryUrl) params.set("url", queryUrl)
-		if (jobId) params.set("jobId", jobId)
+		// Note: jobId is no longer included - URLs are shareable without job reference
 		return params.toString()
-	}, [queryUrl, jobId])
+	}, [queryUrl])
 
 	const value: ReportContextValue = {
 		analysis,

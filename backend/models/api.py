@@ -187,7 +187,7 @@ class WorkflowResultResponse(BaseModel):
         }
     )
     
-    job_id: str = Field(description="Unique job identifier")
+    job_id: Optional[str] = Field(default=None, description="Unique job identifier (may be None for URL-based lookups)")
     url: str = Field(description="Analyzed URL")
     status: JobStatusEnum = Field(description="Final job status")
     cached: bool = Field(default=False, description="Whether result was from cache")

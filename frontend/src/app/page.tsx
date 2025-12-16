@@ -50,6 +50,7 @@ type WorkflowStatus = "idle" | "starting" | "pending" | "running" | "completed" 
 
 interface WorkflowState {
 	jobId: string | null
+	normalizedUrl: string | null
 	status: WorkflowStatus
 	progress: number
 	currentStep: string | null
@@ -64,6 +65,7 @@ export default function Home() {
 
 	const [workflow, setWorkflow] = useState<WorkflowState>({
 		jobId: null,
+		normalizedUrl: null,
 		status: "idle",
 		progress: 0,
 		currentStep: null,
@@ -93,7 +95,7 @@ export default function Home() {
 
 	// Poll for workflow status
 	const pollStatus = useCallback(
-		async (jobId: string) => {
+		async (jobId: string, normalizedUrl: string) => {
 			try {
 				abortControllerRef.current = new AbortController()
 
@@ -125,7 +127,8 @@ export default function Home() {
 
 					// Small delay for UX before navigation
 					setTimeout(() => {
-						const params = new URLSearchParams({ jobId, url: url.trim() })
+						// Navigate with only URL (no jobId) - cache lookup is URL-based
+						const params = new URLSearchParams({ url: normalizedUrl })
 						router.push(`/report/overview?${params.toString()}`)
 					}, 500)
 				}
@@ -144,7 +147,7 @@ export default function Home() {
 				console.error("Polling error:", error)
 			}
 		},
-		[router, url]
+		[router]
 	)
 
 	const startWorkflow = async () => {
@@ -164,6 +167,7 @@ export default function Home() {
 
 		setWorkflow({
 			jobId: null,
+			normalizedUrl: normalizedUrl,
 			status: "starting",
 			progress: 0,
 			currentStep: null,
@@ -194,18 +198,19 @@ export default function Home() {
 
 			// If cached, navigate immediately
 			if (data.cached && data.status === "completed") {
-				const params = new URLSearchParams({ jobId: data.job_id, url: normalizedUrl })
+				// Navigate with only URL (no jobId) - cache lookup is URL-based
+				const params = new URLSearchParams({ url: normalizedUrl })
 				router.push(`/report/overview?${params.toString()}`)
 				return
 			}
 
 			// Start polling for status
 			pollingRef.current = setInterval(() => {
-				pollStatus(data.job_id)
+				pollStatus(data.job_id, normalizedUrl)
 			}, POLLING_INTERVAL)
 
 			// Also poll immediately
-			pollStatus(data.job_id)
+			pollStatus(data.job_id, normalizedUrl)
 		} catch (error) {
 			setWorkflow((prev) => ({
 				...prev,
@@ -234,6 +239,7 @@ export default function Home() {
 		}
 		setWorkflow({
 			jobId: null,
+			normalizedUrl: null,
 			status: "idle",
 			progress: 0,
 			currentStep: null,

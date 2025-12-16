@@ -262,18 +262,25 @@ class WorkflowService:
         Get cached workflow result for URL.
         
         Returns full enriched result if available.
+        URL is normalized (www removed, trailing slash removed) for consistent lookup.
         """
-        key = self.cache.generate_key("workflow:result", url)
+        from services.cache_service import normalize_url
+        normalized = normalize_url(url)
+        key = self.cache.generate_key("workflow:result", normalized)
         return await self.cache.get(key)
     
     async def cache_result(self, url: str, result: dict) -> None:
-        """Cache the final workflow result."""
-        key = self.cache.generate_key("workflow:result", url)
+        """Cache the final workflow result. URL is normalized for consistent keys."""
+        from services.cache_service import normalize_url
+        normalized = normalize_url(url)
+        key = self.cache.generate_key("workflow:result", normalized)
         await self.cache.set(key, result, ttl=self.RESULT_TTL)
     
     async def get_step_cache(self, url: str, step: WorkflowStep) -> Optional[dict]:
-        """Get cached result for a specific step."""
-        key = self.cache.generate_key(f"workflow:step:{step.value}", url)
+        """Get cached result for a specific step. URL is normalized."""
+        from services.cache_service import normalize_url
+        normalized = normalize_url(url)
+        key = self.cache.generate_key(f"workflow:step:{step.value}", normalized)
         return await self.cache.get(key)
     
     async def cache_step_result(
@@ -282,8 +289,10 @@ class WorkflowService:
         step: WorkflowStep, 
         result: dict,
     ) -> None:
-        """Cache result for a specific step."""
-        key = self.cache.generate_key(f"workflow:step:{step.value}", url)
+        """Cache result for a specific step. URL is normalized."""
+        from services.cache_service import normalize_url
+        normalized = normalize_url(url)
+        key = self.cache.generate_key(f"workflow:step:{step.value}", normalized)
         await self.cache.set(key, result, ttl=self.RESULT_TTL)
     
     def calculate_progress(self, completed_steps: list[str]) -> int:

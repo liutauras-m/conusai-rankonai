@@ -9,8 +9,46 @@ import json
 import logging
 import os
 from typing import Any, Optional, Protocol
+from urllib.parse import urlparse
 
 import redis.asyncio as redis
+
+
+def normalize_url(url: str) -> str:
+    """
+    Normalize URL for consistent cache keys.
+    
+    - Removes www. prefix
+    - Removes trailing slash
+    - Lowercases the domain
+    
+    Example:
+        https://www.conusai.com/ -> https://conusai.com
+        https://CONUSAI.COM/page/ -> https://conusai.com/page
+    """
+    if not url:
+        return url
+    
+    # Parse the URL
+    parsed = urlparse(url)
+    
+    # Normalize the domain (lowercase, remove www.)
+    netloc = parsed.netloc.lower()
+    if netloc.startswith("www."):
+        netloc = netloc[4:]
+    
+    # Rebuild URL with normalized parts
+    # Keep path but remove trailing slash (except for root)
+    path = parsed.path.rstrip("/") or ""
+    
+    # Reconstruct URL
+    normalized = f"{parsed.scheme}://{netloc}{path}"
+    
+    # Add query string if present
+    if parsed.query:
+        normalized += f"?{parsed.query}"
+    
+    return normalized
 
 logger = logging.getLogger(__name__)
 

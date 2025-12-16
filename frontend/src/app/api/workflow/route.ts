@@ -110,18 +110,45 @@ export async function POST(request: NextRequest) {
 /**
  * GET /api/workflow?jobId=xxx - Get workflow status
  * GET /api/workflow?jobId=xxx&result=true - Get workflow result
+ * GET /api/workflow?url=xxx - Get cached result by URL (no jobId needed)
  */
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url)
 		const jobId = searchParams.get("jobId")
+		const url = searchParams.get("url")
 		const getResult = searchParams.get("result") === "true"
 
-		if (!jobId) {
-			return NextResponse.json({ error: "jobId is required" }, { status: 400 })
+		const backendUrl = getBackendUrl()
+
+		// If URL is provided (no jobId), fetch by URL
+		if (url && !jobId) {
+			const endpoint = `${backendUrl}/workflow/by-url?url=${encodeURIComponent(url)}`
+			const response = await fetch(endpoint)
+
+			if (!response.ok) {
+				if (response.status === 404) {
+					return NextResponse.json(
+						{ error: "No cached result for this URL", notFound: true },
+						{ status: 404 }
+					)
+				}
+				const error = await response.json().catch(() => ({}))
+				return NextResponse.json(
+					{ error: error.detail || "Failed to get workflow result" },
+					{ status: response.status }
+				)
+			}
+
+			const data = await response.json()
+			return NextResponse.json(data)
 		}
 
-		const backendUrl = getBackendUrl()
+		// Legacy: jobId-based lookup
+		if (!jobId) {
+			return NextResponse.json({ error: "jobId or url is required" }, { status: 400 })
+		}
+
 		const endpoint = getResult
 			? `${backendUrl}/workflow/${jobId}/result`
 			: `${backendUrl}/workflow/${jobId}/status`
