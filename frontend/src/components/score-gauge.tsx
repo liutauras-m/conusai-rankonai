@@ -9,7 +9,7 @@ interface ScoreGaugeProps {
 function getScoreColor(score: number): string {
 	if (score >= 80) return "oklch(0.72 0.14 142)" // forest-like green
 	if (score >= 60) return "oklch(0.78 0.08 175)" // brand mint/primary
-	if (score >= 40) return "oklch(0.78 0.16 75)"  // brand gold
+	if (score >= 40) return "oklch(0.78 0.16 75)" // brand gold
 	return "oklch(0.68 0.18 25)" // brand coral/destructive
 }
 
@@ -23,14 +23,14 @@ function getScoreLabel(score: number): string {
 export function ScoreGauge({ score, label, size = "md" }: ScoreGaugeProps) {
 	const color = getScoreColor(score)
 	const safeScore = Math.min(100, Math.max(0, typeof score === "number" ? score : 0))
-	
+
 	// SVG dimensions
 	const sizes = {
 		sm: { width: 88, strokeWidth: 6, fontSize: 16, labelSize: 9 },
 		md: { width: 120, strokeWidth: 8, fontSize: 22, labelSize: 11 },
 		lg: { width: 140, strokeWidth: 10, fontSize: 28, labelSize: 12 },
 	}
-	
+
 	const { width, strokeWidth, fontSize, labelSize } = sizes[size]
 	const radius = (width - strokeWidth) / 2
 	const circumference = 2 * Math.PI * radius
@@ -38,13 +38,11 @@ export function ScoreGauge({ score, label, size = "md" }: ScoreGaugeProps) {
 	const offset = circumference - progress
 
 	return (
-		<div className="relative inline-flex items-center justify-center" style={{ width, height: width }}>
-			<svg
-				aria-hidden="true"
-				width={width}
-				height={width}
-				className="-rotate-90"
-			>
+		<div
+			className="relative inline-flex items-center justify-center"
+			style={{ width, height: width }}
+		>
+			<svg aria-hidden="true" width={width} height={width} className="-rotate-90">
 				{/* Background circle */}
 				<circle
 					cx={width / 2}
@@ -153,16 +151,8 @@ export function ScoresOverview({ scores }: ScoresOverviewProps) {
 					label="Rich Data"
 					description="Schema markup quality"
 				/>
-				<ScoreCard
-					score={scores.on_page}
-					label="Structure"
-					description="Headings & meta info"
-				/>
-				<ScoreCard
-					score={scores.technical}
-					label="Technical"
-					description="Speed & security"
-				/>
+				<ScoreCard score={scores.on_page} label="Structure" description="Headings & meta info" />
+				<ScoreCard score={scores.technical} label="Technical" description="Speed & security" />
 			</div>
 		</div>
 	)

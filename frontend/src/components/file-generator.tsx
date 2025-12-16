@@ -1,7 +1,7 @@
 "use client"
 
+import { CheckCircle2, Download, FileCode, Zap } from "lucide-react"
 import { useState } from "react"
-import { FileCode, Download, Zap, CheckCircle2 } from "lucide-react"
 
 interface FileGeneratorProps {
 	url: string
@@ -29,7 +29,13 @@ interface FileGeneratorProps {
 	}
 }
 
-export function FileGenerator({ url, report, aiIndexing, metadata, content: _content }: FileGeneratorProps) {
+export function FileGenerator({
+	url,
+	report,
+	aiIndexing,
+	metadata,
+	content: _content,
+}: FileGeneratorProps) {
 	const [generating, setGenerating] = useState<string | null>(null)
 	const [apiGenerating, setApiGenerating] = useState<"robots" | "llms" | null>(null)
 	const [error, setError] = useState<string | null>(null)
@@ -115,15 +121,17 @@ This site allows AI crawlers to index public content.
 
 			const payload = await response.json()
 			// Handle both frontend API (robotsContent/llmsContent) and backend API (robots_txt/llms_txt)
-			const content = type === "robots" 
-				? (payload.robotsContent || payload.robots_txt) 
-				: (payload.llmsContent || payload.llms_txt)
+			const content =
+				type === "robots"
+					? payload.robotsContent || payload.robots_txt
+					: payload.llmsContent || payload.llms_txt
 			if (!content) {
 				throw new Error("No content returned from AI generator")
 			}
 			downloadFile(content, `${type}.txt`)
 		} catch (generatorError) {
-			const message = generatorError instanceof Error ? generatorError.message : "AI generation error"
+			const message =
+				generatorError instanceof Error ? generatorError.message : "AI generation error"
 			setError(message)
 		} finally {
 			setApiGenerating(null)
@@ -134,7 +142,9 @@ This site allows AI crawlers to index public content.
 		<section className="space-y-4">
 			<div className="flex items-center gap-2">
 				<FileCode className="h-4 w-4 text-primary" />
-				<h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">Generate Files</h2>
+				<h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">
+					Generate Files
+				</h2>
 			</div>
 
 			<div className="rounded-xl border border-border/50 bg-card p-4 sm:p-6">
@@ -170,13 +180,13 @@ This site allows AI crawlers to index public content.
 								<span className="text-muted-foreground text-xs">Missing</span>
 							)}
 						</div>
-						
+
 						<ul className="mb-4 space-y-1 text-muted-foreground text-xs">
 							<li>• AI crawler permissions</li>
 							<li>• Path restrictions</li>
 							<li>• Sitemap declaration</li>
 						</ul>
-						
+
 						<div className="grid gap-2">
 							<button
 								type="button"
@@ -216,13 +226,13 @@ This site allows AI crawlers to index public content.
 								<span className="text-muted-foreground text-xs">Missing</span>
 							)}
 						</div>
-						
+
 						<ul className="mb-4 space-y-1 text-muted-foreground text-xs">
 							<li>• Site overview</li>
 							<li>• Key topics & keywords</li>
 							<li>• LLM permissions</li>
 						</ul>
-						
+
 						<div className="grid gap-2">
 							<button
 								type="button"
@@ -248,7 +258,9 @@ This site allows AI crawlers to index public content.
 
 				{/* Installation Instructions */}
 				<div className="mt-5 border-border/50 border-t pt-4">
-					<p className="mb-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">Installation</p>
+					<p className="mb-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+						Installation
+					</p>
 					<ol className="space-y-1 text-muted-foreground text-xs">
 						<li>1. Generate and review the file content</li>
 						<li>2. Upload to your site root (e.g., yoursite.com/robots.txt)</li>

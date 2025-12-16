@@ -1,6 +1,6 @@
 "use client"
 
-import { Lightbulb, Rocket, CheckCircle2, AlertTriangle, Info, ChevronDown } from "lucide-react"
+import { AlertTriangle, CheckCircle2, ChevronDown, Info, Lightbulb, Rocket } from "lucide-react"
 
 interface Issue {
 	severity: string
@@ -85,7 +85,10 @@ function extractBlockedCrawlers(issue: Issue): string[] {
 	if (issue.code === "AI_BOTS_BLOCKED" && issue.message) {
 		const match = issue.message.match(/blocked:\s*(.+)$/i)
 		if (match) {
-			return match[1].split(",").map(s => s.trim()).filter(Boolean)
+			return match[1]
+				.split(",")
+				.map((s) => s.trim())
+				.filter(Boolean)
 		}
 	}
 	return []
@@ -161,7 +164,9 @@ export function AIRecommendations({
 		<section className="space-y-4">
 			<div className="flex items-center gap-2">
 				<Lightbulb className="h-4 w-4 text-primary" />
-				<h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">Recommendations</h2>
+				<h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">
+					Recommendations
+				</h2>
 			</div>
 
 			<div className="rounded-xl border border-border/50 bg-card p-4 sm:p-6">
@@ -215,9 +220,11 @@ export function AIRecommendations({
 									}`}
 								>
 									<div className="flex items-start gap-3">
-										<div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
-											rec.impact === "high" ? "bg-primary" : "bg-muted-foreground"
-										}`} />
+										<div
+											className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
+												rec.impact === "high" ? "bg-primary" : "bg-muted-foreground"
+											}`}
+										/>
 										<div>
 											<h5 className="font-medium text-foreground text-sm">{rec.title}</h5>
 											<p className="mt-1 text-muted-foreground text-sm leading-relaxed">
@@ -249,9 +256,7 @@ export function AIRecommendations({
 											{explanation?.title || issue.message}
 										</p>
 										{explanation && (
-											<p className="mt-1 text-muted-foreground text-xs">
-												{explanation.impact}
-											</p>
+											<p className="mt-1 text-muted-foreground text-xs">{explanation.impact}</p>
 										)}
 										<p className="mt-2 text-foreground text-xs">
 											<span className="font-medium">Fix:</span>{" "}
@@ -275,7 +280,10 @@ export function AIRecommendations({
 								const explanation = ISSUE_EXPLANATIONS[issue.code]
 								const blockedCrawlers = extractBlockedCrawlers(issue)
 								return (
-									<div key={issue.code} className="rounded-lg border border-border/50 bg-background p-3">
+									<div
+										key={issue.code}
+										className="rounded-lg border border-border/50 bg-background p-3"
+									>
 										<p className="font-medium text-foreground text-sm">
 											{explanation?.title || issue.message}
 										</p>
@@ -283,7 +291,7 @@ export function AIRecommendations({
 											<p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
 												<span className="text-muted-foreground">Blocked:</span>
 												{blockedCrawlers.map((crawler) => (
-													<span 
+													<span
 														key={crawler}
 														className="rounded bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-600 dark:text-amber-400"
 													>
@@ -293,14 +301,10 @@ export function AIRecommendations({
 											</p>
 										)}
 										{explanation && !blockedCrawlers.length && (
-											<p className="mt-1 text-muted-foreground text-xs">
-												{explanation.action}
-											</p>
+											<p className="mt-1 text-muted-foreground text-xs">{explanation.action}</p>
 										)}
 										{blockedCrawlers.length > 0 && explanation && (
-											<p className="mt-1.5 text-muted-foreground text-xs">
-												{explanation.action}
-											</p>
+											<p className="mt-1.5 text-muted-foreground text-xs">{explanation.action}</p>
 										)}
 									</div>
 								)
@@ -334,7 +338,7 @@ export function AIRecommendations({
 											<p className="mt-1.5 flex flex-wrap gap-1.5">
 												<span className="font-medium text-foreground">Blocked:</span>
 												{blockedCrawlers.map((crawler) => (
-													<span 
+													<span
 														key={crawler}
 														className="rounded bg-amber-500/10 px-1.5 py-0.5 text-amber-600 dark:text-amber-400"
 													>

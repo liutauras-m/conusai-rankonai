@@ -8,109 +8,103 @@ const getBackendUrl = () => process.env.BACKEND_URL || "http://localhost:8000"
 
 // Verify Cloudflare Turnstile CAPTCHA token
 async function verifyCaptcha(token: string, ip: string): Promise<boolean> {
-  const secretKey = getTurnstileSecretKey()
-  if (!secretKey) {
-    // Skip verification if not configured (development)
-    return true
-  }
+	const secretKey = getTurnstileSecretKey()
+	if (!secretKey) {
+		// Skip verification if not configured (development)
+		return true
+	}
 
-  try {
-    const response = await fetch(
-      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          secret: secretKey,
-          response: token,
-          remoteip: ip,
-        }),
-      }
-    )
+	try {
+		const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+			method: "POST",
+			headers: { "Content-Type": "application/x-www-form-urlencoded" },
+			body: new URLSearchParams({
+				secret: secretKey,
+				response: token,
+				remoteip: ip,
+			}),
+		})
 
-    const data = await response.json()
-    return data.success === true
-  } catch (error) {
-    console.error("CAPTCHA verification error:", error)
-    return false
-  }
+		const data = await response.json()
+		return data.success === true
+	} catch (error) {
+		console.error("CAPTCHA verification error:", error)
+		return false
+	}
 }
 
 /**
  * POST /api/workflow - Start a new workflow
  */
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { url, brand, captchaToken } = body
+	try {
+		const body = await request.json()
+		const { url, brand, captchaToken } = body
 
-    if (!url && !brand) {
-      return NextResponse.json({ error: "URL or brand is required" }, { status: 400 })
-    }
+		if (!url && !brand) {
+			return NextResponse.json({ error: "URL or brand is required" }, { status: 400 })
+		}
 
-    // Verify CAPTCHA if secret key is configured
-    const turnstileSecretKey = getTurnstileSecretKey()
-    if (turnstileSecretKey) {
-      if (!captchaToken) {
-        return NextResponse.json(
-          { error: "CAPTCHA verification required" },
-          { status: 400 }
-        )
-      }
+		// Verify CAPTCHA if secret key is configured
+		const turnstileSecretKey = getTurnstileSecretKey()
+		if (turnstileSecretKey) {
+			if (!captchaToken) {
+				return NextResponse.json({ error: "CAPTCHA verification required" }, { status: 400 })
+			}
 
-      const ip =
-        request.headers.get("x-forwarded-for")?.split(",")[0] ||
-        request.headers.get("x-real-ip") ||
-        "unknown"
+			const ip =
+				request.headers.get("x-forwarded-for")?.split(",")[0] ||
+				request.headers.get("x-real-ip") ||
+				"unknown"
 
-      const isValid = await verifyCaptcha(captchaToken, ip)
-      if (!isValid) {
-        return NextResponse.json(
-          { error: "CAPTCHA verification failed. Please try again." },
-          { status: 403 }
-        )
-      }
-    }
+			const isValid = await verifyCaptcha(captchaToken, ip)
+			if (!isValid) {
+				return NextResponse.json(
+					{ error: "CAPTCHA verification failed. Please try again." },
+					{ status: 403 }
+				)
+			}
+		}
 
-    // Validate URL only when URL mode is used
-    let bodyToSend: Record<string, unknown>
-    if (url) {
-      try {
-        new URL(url.startsWith("http") ? url : `https://${url}`)
-      } catch {
-        return NextResponse.json({ error: "Invalid URL format" }, { status: 400 })
-      }
+		// Validate URL only when URL mode is used
+		let bodyToSend: Record<string, unknown>
+		if (url) {
+			try {
+				new URL(url.startsWith("http") ? url : `https://${url}`)
+			} catch {
+				return NextResponse.json({ error: "Invalid URL format" }, { status: 400 })
+			}
 
-      bodyToSend = { url }
-    } else {
-      // brand provided - we'll forward brand and a readable placeholder URL
-      bodyToSend = { url: `brand:${brand}`, brand }
-    }
+			bodyToSend = { url }
+		} else {
+			// brand provided - we'll forward brand and a readable placeholder URL
+			bodyToSend = { url: `brand:${brand}`, brand }
+		}
 
-    const backendUrl = getBackendUrl()
-    const response = await fetch(`${backendUrl}/workflow/start`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(bodyToSend),
-    })
+		const backendUrl = getBackendUrl()
+		const response = await fetch(`${backendUrl}/workflow/start`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(bodyToSend),
+		})
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      return NextResponse.json(
-        { error: error.detail || "Failed to start workflow" },
-        { status: response.status }
-      )
-    }
+		if (!response.ok) {
+			const error = await response.json().catch(() => ({}))
+			return NextResponse.json(
+				{ error: error.detail || "Failed to start workflow" },
+				{ status: response.status }
+			)
+		}
 
-    const data = await response.json()
-    return NextResponse.json(data)
-  } catch (error) {
-    console.error("Workflow start error:", error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
-    )
-  }
+		const data = await response.json()
+		return NextResponse.json(data)
+	} catch (error) {
+		console.error("Workflow start error:", error)
+		return NextResponse.json(
+			{ error: error instanceof Error ? error.message : "Internal server error" },
+			{ status: 500 }
+		)
+	}
 }
 
 /**
@@ -118,82 +112,82 @@ export async function POST(request: NextRequest) {
  * GET /api/workflow?jobId=xxx&result=true - Get workflow result
  */
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const jobId = searchParams.get("jobId")
-    const getResult = searchParams.get("result") === "true"
+	try {
+		const { searchParams } = new URL(request.url)
+		const jobId = searchParams.get("jobId")
+		const getResult = searchParams.get("result") === "true"
 
-    if (!jobId) {
-      return NextResponse.json({ error: "jobId is required" }, { status: 400 })
-    }
+		if (!jobId) {
+			return NextResponse.json({ error: "jobId is required" }, { status: 400 })
+		}
 
-    const backendUrl = getBackendUrl()
-    const endpoint = getResult
-      ? `${backendUrl}/workflow/${jobId}/result`
-      : `${backendUrl}/workflow/${jobId}/status`
+		const backendUrl = getBackendUrl()
+		const endpoint = getResult
+			? `${backendUrl}/workflow/${jobId}/result`
+			: `${backendUrl}/workflow/${jobId}/status`
 
-    const response = await fetch(endpoint)
+		const response = await fetch(endpoint)
 
-    if (!response.ok) {
-      // Handle 202 (still processing) differently
-      if (response.status === 202) {
-        const data = await response.json().catch(() => ({}))
-        return NextResponse.json(
-          { status: "running", message: data.detail || "Still processing" },
-          { status: 202 }
-        )
-      }
+		if (!response.ok) {
+			// Handle 202 (still processing) differently
+			if (response.status === 202) {
+				const data = await response.json().catch(() => ({}))
+				return NextResponse.json(
+					{ status: "running", message: data.detail || "Still processing" },
+					{ status: 202 }
+				)
+			}
 
-      const error = await response.json().catch(() => ({}))
-      return NextResponse.json(
-        { error: error.detail || "Failed to get workflow status" },
-        { status: response.status }
-      )
-    }
+			const error = await response.json().catch(() => ({}))
+			return NextResponse.json(
+				{ error: error.detail || "Failed to get workflow status" },
+				{ status: response.status }
+			)
+		}
 
-    const data = await response.json()
-    return NextResponse.json(data)
-  } catch (error) {
-    console.error("Workflow status error:", error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
-    )
-  }
+		const data = await response.json()
+		return NextResponse.json(data)
+	} catch (error) {
+		console.error("Workflow status error:", error)
+		return NextResponse.json(
+			{ error: error instanceof Error ? error.message : "Internal server error" },
+			{ status: 500 }
+		)
+	}
 }
 
 /**
  * DELETE /api/workflow?jobId=xxx - Cancel a workflow
  */
 export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const jobId = searchParams.get("jobId")
+	try {
+		const { searchParams } = new URL(request.url)
+		const jobId = searchParams.get("jobId")
 
-    if (!jobId) {
-      return NextResponse.json({ error: "jobId is required" }, { status: 400 })
-    }
+		if (!jobId) {
+			return NextResponse.json({ error: "jobId is required" }, { status: 400 })
+		}
 
-    const backendUrl = getBackendUrl()
-    const response = await fetch(`${backendUrl}/workflow/${jobId}`, {
-      method: "DELETE",
-    })
+		const backendUrl = getBackendUrl()
+		const response = await fetch(`${backendUrl}/workflow/${jobId}`, {
+			method: "DELETE",
+		})
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      return NextResponse.json(
-        { error: error.detail || "Failed to cancel workflow" },
-        { status: response.status }
-      )
-    }
+		if (!response.ok) {
+			const error = await response.json().catch(() => ({}))
+			return NextResponse.json(
+				{ error: error.detail || "Failed to cancel workflow" },
+				{ status: response.status }
+			)
+		}
 
-    const data = await response.json()
-    return NextResponse.json(data)
-  } catch (error) {
-    console.error("Workflow cancel error:", error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
-    )
-  }
+		const data = await response.json()
+		return NextResponse.json(data)
+	} catch (error) {
+		console.error("Workflow cancel error:", error)
+		return NextResponse.json(
+			{ error: error instanceof Error ? error.message : "Internal server error" },
+			{ status: 500 }
+		)
+	}
 }

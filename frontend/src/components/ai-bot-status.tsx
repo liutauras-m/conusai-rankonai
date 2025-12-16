@@ -1,9 +1,12 @@
 "use client"
 
-import { Bot, AlertTriangle, Layers, ChevronDown } from "lucide-react"
+import { AlertTriangle, Bot, ChevronDown, Layers } from "lucide-react"
 
 // Map bot names to user-friendly names and icons
-const BOT_INFO: Record<string, { name: string; platform: string; importance: "high" | "medium" | "low" }> = {
+const BOT_INFO: Record<
+	string,
+	{ name: string; platform: string; importance: "high" | "medium" | "low" }
+> = {
 	GPTBot: { name: "ChatGPT", platform: "OpenAI", importance: "high" },
 	"OAI-SearchBot": { name: "ChatGPT Search", platform: "OpenAI", importance: "high" },
 	"ChatGPT-User": { name: "ChatGPT Browsing", platform: "OpenAI", importance: "high" },
@@ -31,7 +34,7 @@ interface AIBotStatusProps {
 
 function getStatusDisplay(status: string): { allowed: boolean } {
 	return {
-		allowed: status.toLowerCase() === "allowed" || status.toLowerCase() === "allowed_by_default"
+		allowed: status.toLowerCase() === "allowed" || status.toLowerCase() === "allowed_by_default",
 	}
 }
 
@@ -62,26 +65,26 @@ export function AIBotStatus({ botStatus }: AIBotStatusProps) {
 		<section className="space-y-4">
 			<div className="flex items-center gap-2">
 				<Bot className="h-4 w-4 text-primary" />
-				<h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">AI Crawler Status</h2>
+				<h2 className="font-medium text-muted-foreground text-sm uppercase tracking-wider">
+					AI Crawler Status
+				</h2>
 			</div>
 
 			<div className="rounded-xl border border-border/50 bg-card p-4 sm:p-6">
 				{/* Summary Stats */}
 				<div className="mb-5 grid grid-cols-3 gap-3">
 					<div className="rounded-lg bg-primary/5 p-3 text-center">
-						<div className="font-semibold text-primary text-xl tabular-nums">
-							{allowedBots}
-						</div>
+						<div className="font-semibold text-primary text-xl tabular-nums">{allowedBots}</div>
 						<div className="text-muted-foreground text-xs">Allowed</div>
 					</div>
 					<div className="rounded-lg bg-destructive/5 p-3 text-center">
-						<div className="font-semibold text-destructive text-xl tabular-nums">
-							{blockedBots}
-						</div>
+						<div className="font-semibold text-destructive text-xl tabular-nums">{blockedBots}</div>
 						<div className="text-muted-foreground text-xs">Blocked</div>
 					</div>
 					<div className="rounded-lg bg-muted/50 p-3 text-center">
-						<div className="font-semibold text-muted-foreground text-xl tabular-nums">{totalBots}</div>
+						<div className="font-semibold text-muted-foreground text-xl tabular-nums">
+							{totalBots}
+						</div>
 						<div className="text-muted-foreground text-xs">Total</div>
 					</div>
 				</div>
@@ -93,8 +96,8 @@ export function AIBotStatus({ botStatus }: AIBotStatusProps) {
 							<AlertTriangle className="h-4 w-4" /> Critical crawlers blocked
 						</p>
 						<p className="mt-1 text-muted-foreground text-xs">
-							{criticalBlocked.map((b) => BOT_INFO[b]?.name || b).join(", ")} cannot
-							index your site.
+							{criticalBlocked.map((b) => BOT_INFO[b]?.name || b).join(", ")} cannot index your
+							site.
 						</p>
 					</div>
 				)}
@@ -115,13 +118,17 @@ export function AIBotStatus({ botStatus }: AIBotStatusProps) {
 										className="flex items-center justify-between rounded-lg border border-border/50 bg-background p-3 transition-all duration-200 hover:border-primary/20"
 									>
 										<div className="flex items-center gap-2.5">
-											<div className={`h-2 w-2 rounded-full ${allowed ? "bg-primary" : "bg-destructive"}`} />
+											<div
+												className={`h-2 w-2 rounded-full ${allowed ? "bg-primary" : "bg-destructive"}`}
+											/>
 											<div>
 												<p className="font-medium text-foreground text-sm">{info.name}</p>
 												<p className="text-muted-foreground text-xs">{info.platform}</p>
 											</div>
 										</div>
-										<span className={`font-medium text-xs ${allowed ? "text-primary" : "text-destructive"}`}>
+										<span
+											className={`font-medium text-xs ${allowed ? "text-primary" : "text-destructive"}`}
+										>
 											{allowed ? "Allowed" : "Blocked"}
 										</span>
 									</div>
@@ -147,7 +154,9 @@ export function AIBotStatus({ botStatus }: AIBotStatusProps) {
 										className="flex items-center justify-between rounded-lg border border-border/50 bg-background px-3 py-2"
 									>
 										<div className="flex items-center gap-2">
-											<div className={`h-1.5 w-1.5 rounded-full ${allowed ? "bg-primary" : "bg-destructive"}`} />
+											<div
+												className={`h-1.5 w-1.5 rounded-full ${allowed ? "bg-primary" : "bg-destructive"}`}
+											/>
 											<span className="text-foreground text-sm">{info.name}</span>
 										</div>
 										<span className={`text-xs ${allowed ? "text-primary" : "text-destructive"}`}>

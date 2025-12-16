@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 import { Archivo, Inter, Space_Mono } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
 import { PostHogProvider } from "@/components/posthog-provider"
+import { ThemeProvider } from "@/components/theme-provider"
 
 const archivo = Archivo({
 	subsets: ["latin"],
@@ -25,8 +25,19 @@ const spaceMono = Space_Mono({
 
 export const metadata: Metadata = {
 	title: "Rank on AI Search - Check Your AI Visibility",
-	description: "See if ChatGPT, Perplexity, Claude and other AI assistants can find and recommend your brand. Get your AI visibility score and optimize for AI search.",
-	keywords: ["AI search", "AI visibility", "ChatGPT ranking", "Perplexity SEO", "Claude optimization", "AI recommendations", "brand visibility", "AI SEO", "LLM optimization"],
+	description:
+		"See if ChatGPT, Perplexity, Claude and other AI assistants can find and recommend your brand. Get your AI visibility score and optimize for AI search.",
+	keywords: [
+		"AI search",
+		"AI visibility",
+		"ChatGPT ranking",
+		"Perplexity SEO",
+		"Claude optimization",
+		"AI recommendations",
+		"brand visibility",
+		"AI SEO",
+		"LLM optimization",
+	],
 	authors: [{ name: "Rank on AI" }],
 	creator: "Rank on AI",
 	publisher: "Rank on AI",
@@ -44,7 +55,8 @@ export const metadata: Metadata = {
 		url: "https://rankonai.com",
 		siteName: "Rank on AI",
 		title: "Rank on AI Search - Check Your AI Visibility",
-		description: "See if ChatGPT, Perplexity, Claude and other AI assistants can find and recommend your brand. Get your AI visibility score and optimize for AI search.",
+		description:
+			"See if ChatGPT, Perplexity, Claude and other AI assistants can find and recommend your brand. Get your AI visibility score and optimize for AI search.",
 		images: [
 			{
 				url: "/social.png",
@@ -57,7 +69,8 @@ export const metadata: Metadata = {
 	twitter: {
 		card: "summary_large_image",
 		title: "Rank on AI Search - Check Your AI Visibility",
-		description: "See if ChatGPT, Perplexity, Claude and other AI assistants can find and recommend your brand. Get your AI visibility score.",
+		description:
+			"See if ChatGPT, Perplexity, Claude and other AI assistants can find and recommend your brand. Get your AI visibility score.",
 		images: ["/social.png"],
 		creator: "@rankonai",
 	},
@@ -88,7 +101,7 @@ export default function RootLayout({
 				<PostHogProvider>
 					<ThemeProvider
 						attribute="class"
-						defaultTheme="dark"
+						defaultTheme="light"
 						enableSystem
 						disableTransitionOnChange
 					>

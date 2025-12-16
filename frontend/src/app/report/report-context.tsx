@@ -1,732 +1,763 @@
 "use client"
 
-import { createContext, type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react"
-import type { Route } from "next"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import {
+	createContext,
+	type Dispatch,
+	type SetStateAction,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useState,
+} from "react"
 
 type AnalysisReport = {
-  url?: string
-  timestamp?: string
-  crawl_time_ms?: number
-  scores?: {
-    overall?: number
-    technical?: number
-    on_page?: number
-    content?: number
-    structured_data?: number
-    ai_readiness?: number
-  }
-  metadata?: {
-    title?: { value?: string | null }
-    description?: { value?: string | null }
-    canonical?: string
-    robots_meta?: string
-    viewport?: string
-    language?: string
-    keywords_meta?: string
-  }
-  content?: {
-    word_count?: number
-    readability?: Record<string, number>
-    keywords_frequency?: Array<{ keyword: string; count: number }>
-    top_bigrams?: Array<{ phrase: string; count: number }>
-  }
-  issues?: Array<{ severity: string; category: string; code: string; message: string }>
-  recommendations?: Array<{ priority: number; category: string; action: string }>
-  ai_indexing?: {
-    robots_txt?: { present?: boolean; ai_bots_status?: Record<string, string>; sitemaps_declared?: string[] }
-    llms_txt?: { present?: boolean; content_preview?: string | null }
-    sitemap_xml?: { present?: boolean }
-  }
-  llm_context?: {
-    summary?: string
-    overall_score?: number
-    critical_issues_count?: number
-    total_issues_count?: number
-    key_metrics?: Record<string, boolean | number | string>
-    top_keywords?: string[]
-    prompt_for_improvement?: string
-  }
-  technical?: {
-    https?: boolean
-    response_time_ms?: number
-    content_type?: string
-    server?: string
-  }
-  social?: SocialData
+	url?: string
+	timestamp?: string
+	crawl_time_ms?: number
+	scores?: {
+		overall?: number
+		technical?: number
+		on_page?: number
+		content?: number
+		structured_data?: number
+		ai_readiness?: number
+	}
+	metadata?: {
+		title?: { value?: string | null }
+		description?: { value?: string | null }
+		canonical?: string
+		robots_meta?: string
+		viewport?: string
+		language?: string
+		keywords_meta?: string
+	}
+	content?: {
+		word_count?: number
+		readability?: Record<string, number>
+		keywords_frequency?: Array<{ keyword: string; count: number }>
+		top_bigrams?: Array<{ phrase: string; count: number }>
+	}
+	issues?: Array<{ severity: string; category: string; code: string; message: string }>
+	recommendations?: Array<{ priority: number; category: string; action: string }>
+	ai_indexing?: {
+		robots_txt?: {
+			present?: boolean
+			ai_bots_status?: Record<string, string>
+			sitemaps_declared?: string[]
+		}
+		llms_txt?: { present?: boolean; content_preview?: string | null }
+		sitemap_xml?: { present?: boolean }
+	}
+	llm_context?: {
+		summary?: string
+		overall_score?: number
+		critical_issues_count?: number
+		total_issues_count?: number
+		key_metrics?: Record<string, boolean | number | string>
+		top_keywords?: string[]
+		prompt_for_improvement?: string
+	}
+	technical?: {
+		https?: boolean
+		response_time_ms?: number
+		content_type?: string
+		server?: string
+	}
+	social?: SocialData
 }
 
 type ExecutiveSummary = {
-  brand?: string
-  rating?: "Excellent" | "Good" | "Needs Work" | "Poor"
-  rating_color?: "green" | "blue" | "yellow" | "red"
-  overall_score?: number
-  scores?: {
-    ai_readiness?: number
-    content?: number
-    technical?: number
-    structured_data?: number
-  }
-  primary_strength?: string | null
-  primary_weakness?: string | null
-  critical_issues_count?: number
-  total_issues_count?: number
-  ai_access?: {
-    has_llms_txt?: boolean
-    has_sitemap?: boolean
-    allowed_bots_count?: number
-    blocked_bots_count?: number
-    allowed_bots?: string[]
-    blocked_bots?: string[]
-  }
-  metadata?: {
-    title?: string | null
-    description?: string | null
-    language?: string
-  }
+	brand?: string
+	rating?: "Excellent" | "Good" | "Needs Work" | "Poor"
+	rating_color?: "green" | "blue" | "yellow" | "red"
+	overall_score?: number
+	scores?: {
+		ai_readiness?: number
+		content?: number
+		technical?: number
+		structured_data?: number
+	}
+	primary_strength?: string | null
+	primary_weakness?: string | null
+	critical_issues_count?: number
+	total_issues_count?: number
+	ai_access?: {
+		has_llms_txt?: boolean
+		has_sitemap?: boolean
+		allowed_bots_count?: number
+		blocked_bots_count?: number
+		allowed_bots?: string[]
+		blocked_bots?: string[]
+	}
+	metadata?: {
+		title?: string | null
+		description?: string | null
+		language?: string
+	}
 }
 
 type InsightResponse = {
-  success?: boolean
-  prompt?: string
-  models?: string[]
-  responses?: Record<
-    string,
-    {
-      model_key?: string
-      model_name?: string
-      provider?: string
-      success?: boolean
-      response?: string
-      error?: string
-      latency_ms?: number
-      tokens_used?: number
-    }
-  >
-  total_time_ms?: number
-  models_queried?: number
-  models_successful?: number
-  error?: string
-  detail?: string
-  executive_summary?: ExecutiveSummary
-  executive_summary_md?: string
+	success?: boolean
+	prompt?: string
+	models?: string[]
+	responses?: Record<
+		string,
+		{
+			model_key?: string
+			model_name?: string
+			provider?: string
+			success?: boolean
+			response?: string
+			error?: string
+			latency_ms?: number
+			tokens_used?: number
+		}
+	>
+	total_time_ms?: number
+	models_queried?: number
+	models_successful?: number
+	error?: string
+	detail?: string
+	executive_summary?: ExecutiveSummary
+	executive_summary_md?: string
 }
 
 type InsightState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "success"; data: InsightResponse }
-  | { status: "error"; error: string }
+	| { status: "idle" }
+	| { status: "loading" }
+	| { status: "success"; data: InsightResponse }
+	| { status: "error"; error: string }
 
 type PreferenceOption = {
-  id: string
-  label: string
-  detail: string
+	id: string
+	label: string
+	detail: string
 }
 
 type TargetKeyword = {
-  keyword: string
-  searchIntent: "informational" | "transactional" | "navigational" | "commercial"
-  difficulty: "low" | "medium" | "high"
-  tip: string
+	keyword: string
+	searchIntent: "informational" | "transactional" | "navigational" | "commercial"
+	difficulty: "low" | "medium" | "high"
+	tip: string
 }
 
 type SocialPost = {
-  platform: "facebook" | "linkedin" | "twitter"
-  content: string
-  hashtags: string[]
-  callToAction: string
-  bestTimeToPost: string
+	platform: "facebook" | "linkedin" | "twitter"
+	content: string
+	hashtags: string[]
+	callToAction: string
+	bestTimeToPost: string
 }
 
 type MarketingData = {
-  targetKeywords: TargetKeyword[]
-  socialPosts: SocialPost[]
-  contentIdeas: string[]
+	targetKeywords: TargetKeyword[]
+	socialPosts: SocialPost[]
+	contentIdeas: string[]
 }
 
 type SocialTagIssue = {
-  code?: string
-  severity?: "low" | "medium" | "high"
-  message: string
+	code?: string
+	severity?: "low" | "medium" | "high"
+	message: string
 }
 
 type SocialMetadataSection = {
-  present: boolean
-  tags: Record<string, string>
-  missing_required: string[]
-  missing_recommended: string[]
-  issues: SocialTagIssue[]
-  card_type?: string
+	present: boolean
+	tags: Record<string, string>
+	missing_required: string[]
+	missing_recommended: string[]
+	issues: SocialTagIssue[]
+	card_type?: string
 }
 
 type SocialMetadata = {
-  open_graph: SocialMetadataSection
-  twitter_card: SocialMetadataSection
+	open_graph: SocialMetadataSection
+	twitter_card: SocialMetadataSection
 }
 
 type SocialImage = {
-  url: string
-  source: string
-  width?: number
-  height?: number
-  alt?: string
-  type?: string
+	url: string
+	source: string
+	width?: number
+	height?: number
+	alt?: string
+	type?: string
 }
 
 type SocialPlatformStatus = {
-  score: number
-  status: "optimal" | "good" | "needs_improvement" | "poor"
-  issues: string[]
+	score: number
+	status: "optimal" | "good" | "needs_improvement" | "poor"
+	issues: string[]
 }
 
 type SocialImprovement = {
-  priority: "high" | "medium" | "low"
-  category: "open_graph" | "twitter_card" | "image" | "general"
-  issue: string
-  action: string
-  impact: string
+	priority: "high" | "medium" | "low"
+	category: "open_graph" | "twitter_card" | "image" | "general"
+	issue: string
+	action: string
+	impact: string
 }
 
 type SocialRecommendations = {
-  summary?: string
-  improvements: SocialImprovement[]
-  best_practices: string[]
-  sample_tags: {
-    open_graph?: string[]
-    twitter_card?: string[]
-  }
+	summary?: string
+	improvements: SocialImprovement[]
+	best_practices: string[]
+	sample_tags: {
+		open_graph?: string[]
+		twitter_card?: string[]
+	}
 }
 
 type SocialPreview = {
-  title: string
-  description: string
-  image?: string
-  image_alt?: string
-  site_name?: string
-  url?: string
+	title: string
+	description: string
+	image?: string
+	image_alt?: string
+	site_name?: string
+	url?: string
 }
 
 type SocialData = {
-  metadata: SocialMetadata
-  images: SocialImage[]
-  platforms: Record<string, SocialPlatformStatus>
-  score: number
-  issues: SocialTagIssue[]
-  recommendations: SocialRecommendations
-  preview: SocialPreview
+	metadata: SocialMetadata
+	images: SocialImage[]
+	platforms: Record<string, SocialPlatformStatus>
+	score: number
+	issues: SocialTagIssue[]
+	recommendations: SocialRecommendations
+	preview: SocialPreview
 }
 
 type SignalsData = {
-  robots_txt?: {
-    present?: boolean
-    ai_bots_status?: Record<string, string>
-    sitemaps_declared?: string[]
-  }
-  llms_txt?: {
-    present?: boolean
-    content_preview?: string | null
-  }
-  sitemap_xml?: {
-    present?: boolean
-  }
+	robots_txt?: {
+		present?: boolean
+		ai_bots_status?: Record<string, string>
+		sitemaps_declared?: string[]
+	}
+	llms_txt?: {
+		present?: boolean
+		content_preview?: string | null
+	}
+	sitemap_xml?: {
+		present?: boolean
+	}
 }
 
 type KeywordsData = {
-  primary?: string[]
-  secondary?: string[]
-  long_tail?: string[]
-  frequency?: Array<{ keyword: string; count: number }>
+	primary?: string[]
+	secondary?: string[]
+	long_tail?: string[]
+	frequency?: Array<{ keyword: string; count: number }>
 }
 
 type WorkflowResultData = {
-  job_id?: string
-  url?: string
-  status?: string
-  cached?: boolean
-  timestamp?: string
-  scores?: {
-    overall?: number
-    technical?: number
-    on_page?: number
-    content?: number
-    structured_data?: number
-    ai_readiness?: number
-  }
-  overview?: AnalysisReport
-  insights?: InsightResponse
-  signals?: SignalsData
-  keywords?: KeywordsData
-  marketing?: MarketingData
-  social?: SocialData
-  ai_summary?: {
-    markdown?: string
-    structured?: Record<string, unknown>
-  }
-  error?: string
+	job_id?: string
+	url?: string
+	status?: string
+	cached?: boolean
+	timestamp?: string
+	scores?: {
+		overall?: number
+		technical?: number
+		on_page?: number
+		content?: number
+		structured_data?: number
+		ai_readiness?: number
+	}
+	overview?: AnalysisReport
+	insights?: InsightResponse
+	signals?: SignalsData
+	keywords?: KeywordsData
+	marketing?: MarketingData
+	social?: SocialData
+	ai_summary?: {
+		markdown?: string
+		structured?: Record<string, unknown>
+	}
+	error?: string
 }
 
 type ReportContextValue = {
-  analysis: AnalysisReport | null
-  status: "idle" | "loading" | "success" | "error"
-  error: string | null
-  urlInput: string
-  setUrlInput: (value: string) => void
-  handleRun: () => void
-  insights: InsightState
-  insightsResponses: Array<{
-    key: string
-    name: string
-    provider: string
-    success?: boolean
-    text?: string
-    error?: string
-    latency?: number
-  }>
-  preferences: string[]
-  setPreferences: Dispatch<SetStateAction<string[]>>
-  preferenceOptions: PreferenceOption[]
-  preferenceOptionsLoading: boolean
-  aiIndexing: {
-    robots_txt: { present: boolean; ai_bots_status: Record<string, string>; sitemaps_declared: string[] }
-    llms_txt: { present: boolean; content_preview: string | null }
-    sitemap_xml: { present: boolean }
-  }
-  bestFeatures: Array<[string, number | undefined]>
-  topFeatures: Array<[string, number | undefined]>
-  questions: string[]
-  questionsLoading: boolean
-  marketingData: MarketingData | null
-  marketingLoading: boolean
-  keyMetrics: Array<[string, boolean | number | string]>
-  formattedTimestamp: string
-  metadataForFiles: {
-    title: { value: string | null }
-    description: { value: string | null }
-  }
-  contentForFiles: {
-    keywords_frequency: Array<{ keyword: string; count: number }>
-  }
-  queryString: string
-  workflowData: WorkflowResultData | null
-  keywordsData: KeywordsData | null
-  signalsData: SignalsData | null
-  socialData: SocialData | null
+	analysis: AnalysisReport | null
+	status: "idle" | "loading" | "success" | "error"
+	error: string | null
+	urlInput: string
+	setUrlInput: (value: string) => void
+	handleRun: () => void
+	insights: InsightState
+	insightsResponses: Array<{
+		key: string
+		name: string
+		provider: string
+		success?: boolean
+		text?: string
+		error?: string
+		latency?: number
+	}>
+	preferences: string[]
+	setPreferences: Dispatch<SetStateAction<string[]>>
+	preferenceOptions: PreferenceOption[]
+	preferenceOptionsLoading: boolean
+	aiIndexing: {
+		robots_txt: {
+			present: boolean
+			ai_bots_status: Record<string, string>
+			sitemaps_declared: string[]
+		}
+		llms_txt: { present: boolean; content_preview: string | null }
+		sitemap_xml: { present: boolean }
+	}
+	bestFeatures: Array<[string, number | undefined]>
+	topFeatures: Array<[string, number | undefined]>
+	questions: string[]
+	questionsLoading: boolean
+	marketingData: MarketingData | null
+	marketingLoading: boolean
+	keyMetrics: Array<[string, boolean | number | string]>
+	formattedTimestamp: string
+	metadataForFiles: {
+		title: { value: string | null }
+		description: { value: string | null }
+	}
+	contentForFiles: {
+		keywords_frequency: Array<{ keyword: string; count: number }>
+	}
+	queryString: string
+	workflowData: WorkflowResultData | null
+	keywordsData: KeywordsData | null
+	signalsData: SignalsData | null
+	socialData: SocialData | null
 }
 
 const ReportContext = createContext<ReportContextValue | null>(null)
 
 export function ReportProvider({ children }: { children: React.ReactNode }) {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const pathname = usePathname()
+	const searchParams = useSearchParams()
+	const router = useRouter()
+	const _pathname = usePathname()
 
-  const queryUrl = searchParams.get("url") ?? ""
-  const jobId = searchParams.get("jobId") ?? ""
+	const queryUrl = searchParams.get("url") ?? ""
+	const jobId = searchParams.get("jobId") ?? ""
 
-  const [workflowData, setWorkflowData] = useState<WorkflowResultData | null>(null)
-  const [analysis, setAnalysis] = useState<AnalysisReport | null>(null)
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
-  const [error, setError] = useState<string | null>(null)
-  const [urlInput, setUrlInput] = useState(queryUrl)
-  const [insights, setInsights] = useState<InsightState>({ status: "idle" })
-  const [preferences, setPreferences] = useState<string[]>([])
-  const [preferenceOptions, setPreferenceOptions] = useState<PreferenceOption[]>([])
-  const [preferenceOptionsLoading, setPreferenceOptionsLoading] = useState(false)
-  const [questions, setQuestions] = useState<string[]>([])
-  const [questionsLoading, setQuestionsLoading] = useState(false)
-  const [marketingData, setMarketingData] = useState<MarketingData | null>(null)
-  const [marketingLoading, setMarketingLoading] = useState(false)
-  const [keywordsData, setKeywordsData] = useState<KeywordsData | null>(null)
-  const [signalsData, setSignalsData] = useState<SignalsData | null>(null)
-  const [socialData, setSocialData] = useState<SocialData | null>(null)
-  const [mounted, setMounted] = useState(false)
+	const [workflowData, setWorkflowData] = useState<WorkflowResultData | null>(null)
+	const [analysis, setAnalysis] = useState<AnalysisReport | null>(null)
+	const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+	const [error, setError] = useState<string | null>(null)
+	const [urlInput, setUrlInput] = useState(queryUrl)
+	const [insights, setInsights] = useState<InsightState>({ status: "idle" })
+	const [preferences, setPreferences] = useState<string[]>([])
+	const [preferenceOptions, setPreferenceOptions] = useState<PreferenceOption[]>([])
+	const [preferenceOptionsLoading, setPreferenceOptionsLoading] = useState(false)
+	const [questions, setQuestions] = useState<string[]>([])
+	const [questionsLoading, setQuestionsLoading] = useState(false)
+	const [marketingData, setMarketingData] = useState<MarketingData | null>(null)
+	const [marketingLoading, _setMarketingLoading] = useState(false)
+	const [keywordsData, setKeywordsData] = useState<KeywordsData | null>(null)
+	const [signalsData, setSignalsData] = useState<SignalsData | null>(null)
+	const [socialData, setSocialData] = useState<SocialData | null>(null)
+	const [mounted, setMounted] = useState(false)
 
-  useEffect(() => {
-    setUrlInput(queryUrl)
-  }, [queryUrl])
+	useEffect(() => {
+		setUrlInput(queryUrl)
+	}, [queryUrl])
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+	useEffect(() => {
+		setMounted(true)
+	}, [])
 
-  // Load stored preferences from localStorage
-  useEffect(() => {
-    if (!mounted) return
-    const stored = window.localStorage.getItem("rank-on-ai-preferences")
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed)) {
-          setPreferences(parsed)
-        }
-      } catch (storageError) {
-        console.error(storageError)
-      }
-    }
-  }, [mounted])
+	// Load stored preferences from localStorage
+	useEffect(() => {
+		if (!mounted) return
+		const stored = window.localStorage.getItem("rank-on-ai-preferences")
+		if (stored) {
+			try {
+				const parsed = JSON.parse(stored)
+				if (Array.isArray(parsed)) {
+					setPreferences(parsed)
+				}
+			} catch (storageError) {
+				console.error(storageError)
+			}
+		}
+	}, [mounted])
 
-  // Save preferences to localStorage
-  useEffect(() => {
-    if (!mounted || preferences.length === 0) return
-    window.localStorage.setItem("rank-on-ai-preferences", JSON.stringify(preferences))
-  }, [preferences, mounted])
+	// Save preferences to localStorage
+	useEffect(() => {
+		if (!mounted || preferences.length === 0) return
+		window.localStorage.setItem("rank-on-ai-preferences", JSON.stringify(preferences))
+	}, [preferences, mounted])
 
-  // Fetch workflow result when jobId is available
-  useEffect(() => {
-    if (!jobId) {
-      // Reset state if no jobId
-      setWorkflowData(null)
-      setAnalysis(null)
-      setStatus("idle")
-      setError(null)
-      setInsights({ status: "idle" })
-      setMarketingData(null)
-      setKeywordsData(null)
-      setSignalsData(null)
-      setSocialData(null)
-      return
-    }
+	// Fetch workflow result when jobId is available
+	useEffect(() => {
+		if (!jobId) {
+			// Reset state if no jobId
+			setWorkflowData(null)
+			setAnalysis(null)
+			setStatus("idle")
+			setError(null)
+			setInsights({ status: "idle" })
+			setMarketingData(null)
+			setKeywordsData(null)
+			setSignalsData(null)
+			setSocialData(null)
+			return
+		}
 
-    const controller = new AbortController()
-    setStatus("loading")
-    setError(null)
+		const controller = new AbortController()
+		setStatus("loading")
+		setError(null)
 
-    fetch(`/api/workflow?jobId=${jobId}&result=true`, {
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body?.error ?? "Failed to load analysis results")
-        }
-        return res.json()
-      })
-      .then((data: WorkflowResultData) => {
-        setWorkflowData(data)
-        
-        // Set overview/analysis data
-        const overviewData = data.overview || {}
-        setAnalysis({
-          ...overviewData,
-          url: data.url || overviewData.url,
-          timestamp: data.timestamp || overviewData.timestamp,
-          scores: data.scores || overviewData.scores,
-        })
-        
-        // Set insights from workflow
-        if (data.insights) {
-          setInsights({ 
-            status: "success", 
-            data: data.insights 
-          })
-        }
-        
-        // Set signals from workflow
-        if (data.signals) {
-          setSignalsData(data.signals)
-        }
-        
-        // Set keywords from workflow
-        if (data.keywords) {
-          setKeywordsData(data.keywords)
-        }
-        
-        // Set marketing from workflow (transform snake_case to camelCase)
-        if (data.marketing) {
-          const marketing = data.marketing as Record<string, unknown>
-          setMarketingData({
-            targetKeywords: (marketing.target_keywords ?? []) as TargetKeyword[],
-            socialPosts: ((marketing.social_posts ?? []) as Array<Record<string, unknown>>).map(post => ({
-              platform: post.platform as "facebook" | "linkedin" | "twitter",
-              content: (post.content ?? "") as string,
-              hashtags: (post.hashtags ?? []) as string[],
-              callToAction: (post.call_to_action ?? post.callToAction ?? "") as string,
-              bestTimeToPost: (post.best_time ?? post.bestTimeToPost ?? "") as string,
-            })),
-            contentIdeas: ((marketing.content_ideas ?? []) as Array<Record<string, unknown>>).map(idea => 
-              typeof idea === "string" ? idea : (idea.title ?? idea.description ?? "") as string
-            ),
-          })
-        }
+		fetch(`/api/workflow?jobId=${jobId}&result=true`, {
+			signal: controller.signal,
+		})
+			.then(async (res) => {
+				if (!res.ok) {
+					const body = await res.json().catch(() => ({}))
+					throw new Error(body?.error ?? "Failed to load analysis results")
+				}
+				return res.json()
+			})
+			.then((data: WorkflowResultData) => {
+				setWorkflowData(data)
 
-        if (data.social) {
-          setSocialData(data.social)
-        } else {
-          setSocialData(null)
-        }
-        
-        setStatus("success")
-      })
-      .catch((fetchError) => {
-        if (controller.signal.aborted) return
-        setStatus("error")
-        setError(fetchError instanceof Error ? fetchError.message : "Analysis failed")
-      })
+				// Set overview/analysis data
+				const overviewData = data.overview || {}
+				setAnalysis({
+					...overviewData,
+					url: data.url || overviewData.url,
+					timestamp: data.timestamp || overviewData.timestamp,
+					scores: data.scores || overviewData.scores,
+				})
 
-    return () => controller.abort()
-  }, [jobId])
+				// Set insights from workflow
+				if (data.insights) {
+					setInsights({
+						status: "success",
+						data: data.insights,
+					})
+				}
 
-  // Fetch AI-generated preference options when analysis is ready
-  useEffect(() => {
-    if (!analysis) {
-      setPreferenceOptions([])
-      return
-    }
+				// Set signals from workflow
+				if (data.signals) {
+					setSignalsData(data.signals)
+				}
 
-    const controller = new AbortController()
-    setPreferenceOptionsLoading(true)
+				// Set keywords from workflow
+				if (data.keywords) {
+					setKeywordsData(data.keywords)
+				}
 
-    fetch("/api/generate-suggestions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analysis, type: "preferences" }),
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to generate preferences")
-        return res.json()
-      })
-      .then((payload) => {
-        if (payload.success && Array.isArray(payload.data)) {
-          setPreferenceOptions(payload.data)
-          // Auto-select first two preferences if none selected
-          if (preferences.length === 0 && payload.data.length >= 2) {
-            setPreferences([payload.data[0].id, payload.data[1].id])
-          }
-        }
-      })
-      .catch((err) => {
-        if (!controller.signal.aborted) {
-          console.error("Preference generation error:", err)
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setPreferenceOptionsLoading(false)
-        }
-      })
+				// Set marketing from workflow (transform snake_case to camelCase)
+				if (data.marketing) {
+					const marketing = data.marketing as Record<string, unknown>
+					setMarketingData({
+						targetKeywords: (marketing.target_keywords ?? []) as TargetKeyword[],
+						socialPosts: ((marketing.social_posts ?? []) as Array<Record<string, unknown>>).map(
+							(post) => ({
+								platform: post.platform as "facebook" | "linkedin" | "twitter",
+								content: (post.content ?? "") as string,
+								hashtags: (post.hashtags ?? []) as string[],
+								callToAction: (post.call_to_action ?? post.callToAction ?? "") as string,
+								bestTimeToPost: (post.best_time ?? post.bestTimeToPost ?? "") as string,
+							})
+						),
+						contentIdeas: ((marketing.content_ideas ?? []) as Array<Record<string, unknown>>).map(
+							(idea) =>
+								typeof idea === "string" ? idea : ((idea.title ?? idea.description ?? "") as string)
+						),
+					})
+				}
 
-    return () => controller.abort()
-  }, [analysis, preferences.length])
+				if (data.social) {
+					setSocialData(data.social)
+				} else {
+					setSocialData(null)
+				}
 
-  // Fetch AI-generated questions when analysis is ready
-  useEffect(() => {
-    if (!analysis) {
-      setQuestions([])
-      return
-    }
+				setStatus("success")
+			})
+			.catch((fetchError) => {
+				if (controller.signal.aborted) return
+				setStatus("error")
+				setError(fetchError instanceof Error ? fetchError.message : "Analysis failed")
+			})
 
-    const controller = new AbortController()
-    setQuestionsLoading(true)
+		return () => controller.abort()
+	}, [jobId])
 
-    fetch("/api/generate-suggestions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analysis, type: "questions" }),
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to generate questions")
-        return res.json()
-      })
-      .then((payload) => {
-        if (payload.success && Array.isArray(payload.data)) {
-          setQuestions(payload.data)
-        }
-      })
-      .catch((err) => {
-        if (!controller.signal.aborted) {
-          console.error("Question generation error:", err)
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setQuestionsLoading(false)
-        }
-      })
+	// Fetch AI-generated preference options when analysis is ready
+	useEffect(() => {
+		if (!analysis) {
+			setPreferenceOptions([])
+			return
+		}
 
-    return () => controller.abort()
-  }, [analysis])
+		const controller = new AbortController()
+		setPreferenceOptionsLoading(true)
 
-  const handleRun = useCallback(() => {
-    if (!urlInput) return
-    const normalized = urlInput.startsWith("http") ? urlInput : `https://${urlInput}`
-    // Navigate back to home page to start new analysis
-    router.push(`/?url=${encodeURIComponent(normalized)}`)
-  }, [urlInput, router])
+		fetch("/api/generate-suggestions", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ analysis, type: "preferences" }),
+			signal: controller.signal,
+		})
+			.then(async (res) => {
+				if (!res.ok) throw new Error("Failed to generate preferences")
+				return res.json()
+			})
+			.then((payload) => {
+				if (payload.success && Array.isArray(payload.data)) {
+					setPreferenceOptions(payload.data)
+					// Auto-select first two preferences if none selected
+					if (preferences.length === 0 && payload.data.length >= 2) {
+						setPreferences([payload.data[0].id, payload.data[1].id])
+					}
+				}
+			})
+			.catch((err) => {
+				if (!controller.signal.aborted) {
+					console.error("Preference generation error:", err)
+				}
+			})
+			.finally(() => {
+				if (!controller.signal.aborted) {
+					setPreferenceOptionsLoading(false)
+				}
+			})
 
-  const aiIndexing = useMemo(() => {
-    // First try to get from signals data (from workflow)
-    if (signalsData) {
-      return {
-        robots_txt: {
-          present: signalsData.robots_txt?.present ?? false,
-          ai_bots_status: signalsData.robots_txt?.ai_bots_status ?? {},
-          sitemaps_declared: signalsData.robots_txt?.sitemaps_declared ?? [],
-        },
-        llms_txt: {
-          present: signalsData.llms_txt?.present ?? false,
-          content_preview: signalsData.llms_txt?.content_preview ?? null,
-        },
-        sitemap_xml: {
-          present: signalsData.sitemap_xml?.present ?? false,
-        },
-      }
-    }
-    
-    // Fall back to analysis data
-    const source = analysis?.ai_indexing
-    return {
-      robots_txt: {
-        present: source?.robots_txt?.present ?? false,
-        ai_bots_status: source?.robots_txt?.ai_bots_status ?? {},
-        sitemaps_declared: source?.robots_txt?.sitemaps_declared ?? [],
-      },
-      llms_txt: {
-        present: source?.llms_txt?.present ?? false,
-        content_preview: source?.llms_txt?.content_preview ?? null,
-      },
-      sitemap_xml: {
-        present: source?.sitemap_xml?.present ?? false,
-      },
-    }
-  }, [analysis?.ai_indexing, signalsData])
+		return () => controller.abort()
+	}, [analysis, preferences.length])
 
-  const bestFeatures = useMemo(() => {
-    const scoreEntries = analysis?.scores
-      ? Object.entries(analysis.scores).filter(([key]) => key !== "overall")
-      : []
-    scoreEntries.sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
-    const topCount = Math.max(1, Math.ceil(scoreEntries.length * 0.1))
-    return scoreEntries.slice(0, topCount)
-  }, [analysis?.scores])
+	// Fetch AI-generated questions when analysis is ready
+	useEffect(() => {
+		if (!analysis) {
+			setQuestions([])
+			return
+		}
 
-  const topFeatures = useMemo(() => {
-    if (!analysis?.scores) return []
-    return Object.entries(analysis.scores)
-      .filter(([key]) => key !== "overall")
-      .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
-      .slice(0, 3)
-  }, [analysis?.scores])
+		const controller = new AbortController()
+		setQuestionsLoading(true)
 
-  const keyMetrics = useMemo(() => {
-    if (!analysis?.llm_context?.key_metrics) return []
-    return Object.entries(analysis.llm_context.key_metrics)
-  }, [analysis?.llm_context?.key_metrics])
+		fetch("/api/generate-suggestions", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ analysis, type: "questions" }),
+			signal: controller.signal,
+		})
+			.then(async (res) => {
+				if (!res.ok) throw new Error("Failed to generate questions")
+				return res.json()
+			})
+			.then((payload) => {
+				if (payload.success && Array.isArray(payload.data)) {
+					setQuestions(payload.data)
+				}
+			})
+			.catch((err) => {
+				if (!controller.signal.aborted) {
+					console.error("Question generation error:", err)
+				}
+			})
+			.finally(() => {
+				if (!controller.signal.aborted) {
+					setQuestionsLoading(false)
+				}
+			})
 
-  const formattedTimestamp = useMemo(() => {
-    const ts = workflowData?.timestamp || analysis?.timestamp
-    if (!ts) return "pending"
-    return new Date(ts).toLocaleString()
-  }, [workflowData?.timestamp, analysis?.timestamp])
+		return () => controller.abort()
+	}, [analysis])
 
-  const insightsResponses = useMemo(() => {
-    if (insights.status !== "success" || !insights.data) return []
-    
-    // Handle new simpler format: { openai: "text", grok: "text", summary: "..." }
-    const modelMap: Record<string, { name: string; provider: string }> = {
-      openai: { name: "GPT-4o", provider: "OpenAI" },
-      grok: { name: "Grok", provider: "xAI" },
-    }
-    
-    const responses: Array<{
-      key: string
-      name: string
-      provider: string
-      success: boolean
-      text: string | undefined
-      error: string | undefined
-      latency: number | undefined
-    }> = []
-    
-    for (const [key, value] of Object.entries(insights.data)) {
-      if (key === "summary") continue // Skip summary field
-      const modelInfo = modelMap[key] || { name: key, provider: "AI" }
-      if (typeof value === "string" && value) {
-        responses.push({
-          key,
-          name: modelInfo.name,
-          provider: modelInfo.provider,
-          success: true,
-          text: value,
-          error: undefined,
-          latency: undefined,
-        })
-      } else if (value === null) {
-        responses.push({
-          key,
-          name: modelInfo.name,
-          provider: modelInfo.provider,
-          success: false,
-          text: undefined,
-          error: "Failed to generate insights",
-          latency: undefined,
-        })
-      }
-    }
-    
-    return responses
-  }, [insights])
+	const handleRun = useCallback(() => {
+		if (!urlInput) return
+		const normalized = urlInput.startsWith("http") ? urlInput : `https://${urlInput}`
+		// Navigate back to home page to start new analysis
+		router.push(`/?url=${encodeURIComponent(normalized)}`)
+	}, [urlInput, router])
 
-  const metadataForFiles = useMemo(() => {
-    return {
-      title: { value: analysis?.metadata?.title?.value ?? null },
-      description: { value: analysis?.metadata?.description?.value ?? null },
-    }
-  }, [analysis?.metadata])
+	const aiIndexing = useMemo(() => {
+		// First try to get from signals data (from workflow)
+		if (signalsData) {
+			return {
+				robots_txt: {
+					present: signalsData.robots_txt?.present ?? false,
+					ai_bots_status: signalsData.robots_txt?.ai_bots_status ?? {},
+					sitemaps_declared: signalsData.robots_txt?.sitemaps_declared ?? [],
+				},
+				llms_txt: {
+					present: signalsData.llms_txt?.present ?? false,
+					content_preview: signalsData.llms_txt?.content_preview ?? null,
+				},
+				sitemap_xml: {
+					present: signalsData.sitemap_xml?.present ?? false,
+				},
+			}
+		}
 
-  const contentForFiles = useMemo(() => {
-    return {
-      keywords_frequency: analysis?.content?.keywords_frequency ?? [],
-    }
-  }, [analysis?.content?.keywords_frequency])
+		// Fall back to analysis data
+		const source = analysis?.ai_indexing
+		return {
+			robots_txt: {
+				present: source?.robots_txt?.present ?? false,
+				ai_bots_status: source?.robots_txt?.ai_bots_status ?? {},
+				sitemaps_declared: source?.robots_txt?.sitemaps_declared ?? [],
+			},
+			llms_txt: {
+				present: source?.llms_txt?.present ?? false,
+				content_preview: source?.llms_txt?.content_preview ?? null,
+			},
+			sitemap_xml: {
+				present: source?.sitemap_xml?.present ?? false,
+			},
+		}
+	}, [analysis?.ai_indexing, signalsData])
 
-  const queryString = useMemo(() => {
-    const params = new URLSearchParams()
-    if (queryUrl) params.set("url", queryUrl)
-    if (jobId) params.set("jobId", jobId)
-    return params.toString()
-  }, [queryUrl, jobId])
+	const bestFeatures = useMemo(() => {
+		const scoreEntries = analysis?.scores
+			? Object.entries(analysis.scores).filter(([key]) => key !== "overall")
+			: []
+		scoreEntries.sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
+		const topCount = Math.max(1, Math.ceil(scoreEntries.length * 0.1))
+		return scoreEntries.slice(0, topCount)
+	}, [analysis?.scores])
 
-  const value: ReportContextValue = {
-    analysis,
-    status,
-    error,
-    urlInput,
-    setUrlInput,
-    handleRun,
-    insights,
-    insightsResponses,
-    preferences,
-    setPreferences,
-    preferenceOptions,
-    preferenceOptionsLoading,
-    aiIndexing,
-    bestFeatures,
-    topFeatures,
-    questions,
-    questionsLoading,
-    marketingData,
-    marketingLoading,
-    keyMetrics,
-    formattedTimestamp,
-    metadataForFiles,
-    contentForFiles,
-    queryString,
-    workflowData,
-    keywordsData,
-    signalsData,
-    socialData,
-  }
+	const topFeatures = useMemo(() => {
+		if (!analysis?.scores) return []
+		return Object.entries(analysis.scores)
+			.filter(([key]) => key !== "overall")
+			.sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
+			.slice(0, 3)
+	}, [analysis?.scores])
 
-  return <ReportContext.Provider value={value}>{children}</ReportContext.Provider>
+	const keyMetrics = useMemo(() => {
+		if (!analysis?.llm_context?.key_metrics) return []
+		return Object.entries(analysis.llm_context.key_metrics)
+	}, [analysis?.llm_context?.key_metrics])
+
+	const formattedTimestamp = useMemo(() => {
+		const ts = workflowData?.timestamp || analysis?.timestamp
+		if (!ts) return "pending"
+		return new Date(ts).toLocaleString()
+	}, [workflowData?.timestamp, analysis?.timestamp])
+
+	const insightsResponses = useMemo(() => {
+		if (insights.status !== "success" || !insights.data) return []
+
+		// Handle new simpler format: { openai: "text", grok: "text", summary: "..." }
+		const modelMap: Record<string, { name: string; provider: string }> = {
+			openai: { name: "GPT-4o", provider: "OpenAI" },
+			grok: { name: "Grok", provider: "xAI" },
+		}
+
+		// Fields to skip (not model responses)
+		const skipFields = new Set([
+			"summary",
+			"executive_summary",
+			"executive_summary_md",
+			"total_time_ms",
+			"models_queried",
+			"models_successful",
+			"error",
+			"detail",
+		])
+
+		const responses: Array<{
+			key: string
+			name: string
+			provider: string
+			success: boolean
+			text: string | undefined
+			error: string | undefined
+			latency: number | undefined
+		}> = []
+
+		for (const [key, value] of Object.entries(insights.data)) {
+			if (skipFields.has(key)) continue // Skip non-model fields
+			const modelInfo = modelMap[key] || { name: key, provider: "AI" }
+			if (typeof value === "string" && value) {
+				responses.push({
+					key,
+					name: modelInfo.name,
+					provider: modelInfo.provider,
+					success: true,
+					text: value,
+					error: undefined,
+					latency: undefined,
+				})
+			} else if (value === null) {
+				responses.push({
+					key,
+					name: modelInfo.name,
+					provider: modelInfo.provider,
+					success: false,
+					text: undefined,
+					error: "Failed to generate insights",
+					latency: undefined,
+				})
+			}
+		}
+
+		return responses
+	}, [insights])
+
+	const metadataForFiles = useMemo(() => {
+		return {
+			title: { value: analysis?.metadata?.title?.value ?? null },
+			description: { value: analysis?.metadata?.description?.value ?? null },
+		}
+	}, [analysis?.metadata])
+
+	const contentForFiles = useMemo(() => {
+		return {
+			keywords_frequency: analysis?.content?.keywords_frequency ?? [],
+		}
+	}, [analysis?.content?.keywords_frequency])
+
+	const queryString = useMemo(() => {
+		const params = new URLSearchParams()
+		if (queryUrl) params.set("url", queryUrl)
+		if (jobId) params.set("jobId", jobId)
+		return params.toString()
+	}, [queryUrl, jobId])
+
+	const value: ReportContextValue = {
+		analysis,
+		status,
+		error,
+		urlInput,
+		setUrlInput,
+		handleRun,
+		insights,
+		insightsResponses,
+		preferences,
+		setPreferences,
+		preferenceOptions,
+		preferenceOptionsLoading,
+		aiIndexing,
+		bestFeatures,
+		topFeatures,
+		questions,
+		questionsLoading,
+		marketingData,
+		marketingLoading,
+		keyMetrics,
+		formattedTimestamp,
+		metadataForFiles,
+		contentForFiles,
+		queryString,
+		workflowData,
+		keywordsData,
+		signalsData,
+		socialData,
+	}
+
+	return <ReportContext.Provider value={value}>{children}</ReportContext.Provider>
 }
 
 export function useReportContext() {
-  const context = useContext(ReportContext)
-  if (!context) {
-    throw new Error("useReportContext must be used within a ReportProvider")
-  }
-  return context
+	const context = useContext(ReportContext)
+	if (!context) {
+		throw new Error("useReportContext must be used within a ReportProvider")
+	}
+	return context
 }

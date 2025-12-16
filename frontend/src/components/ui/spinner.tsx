@@ -15,7 +15,7 @@ export function Spinner({ size = "md", className }: SpinnerProps) {
 	return (
 		<div
 			className={cn(
-				"animate-spin rounded-full border-muted-foreground/30 border-t-[#80CDC6]",
+				"animate-spin rounded-full border-muted-foreground/20 border-t-primary",
 				sizeClasses[size],
 				className
 			)}
@@ -27,16 +27,12 @@ interface LoadingOverlayProps {
 	message?: string
 }
 
-export function LoadingOverlay({
-	message = "Analysing...",
-}: LoadingOverlayProps) {
+export function LoadingOverlay({ message = "Analysing..." }: LoadingOverlayProps) {
 	return (
-		<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/80 backdrop-blur-sm">
+		<div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background">
 			<Spinner size="lg" />
-			<p className="font-medium text-lg text-muted-foreground">{message}</p>
-			<p className="text-muted-foreground/70 text-sm">
-				This may take up to 30 seconds
-			</p>
+			<p className="font-medium text-foreground">{message}</p>
+			<p className="text-muted-foreground text-sm">This may take up to 30 seconds</p>
 		</div>
 	)
 }
