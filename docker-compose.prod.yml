@@ -1,66 +1,65 @@
-version: "3.8"
-
 services:
+  # Traefik reverse proxy (HTTPS)
+  traefik:
+    image: traefik:v3.1
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/letsencrypt:/letsencrypt
+    networks:
+      - dokploy-network
+    restart: unless-stopped
+
   # Next.js Frontend
   frontend:
-    image: ghcr.io/liutauras-m/conusai-rankonai-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     environment:
       - NODE_ENV=production
-      # Use the service name (works regardless of stack prefix)
       - BACKEND_URL=http://backend:8000
       - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
       - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
-      - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST}
-    networks:
-      - rankon
-      - dokploy-network
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == worker
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-      labels:
-        - traefik.enable=true
-        - traefik.swarm.network=dokploy-network
-        # HTTP Router - redirect to HTTPS
-        - traefik.http.routers.rankon.rule=Host(`rankon.cloud.conusai.com`)
-        - traefik.http.routers.rankon.entrypoints=web
-        - traefik.http.routers.rankon.middlewares=redirect-to-https@file
-        # HTTPS Router
-        - traefik.http.routers.rankon-secure.rule=Host(`rankon.cloud.conusai.com`)
-        - traefik.http.routers.rankon-secure.entrypoints=websecure
-        - traefik.http.routers.rankon-secure.tls=true
-        - traefik.http.routers.rankon-secure.tls.certresolver=letsencrypt
-        - traefik.http.routers.rankon-secure.service=rankon
-        # API Router - apply rate limiting only to /api
-        - traefik.http.routers.rankon-api.rule=Host(`rankon.cloud.conusai.com`) && PathPrefix(`/api`)
-        - traefik.http.routers.rankon-api.entrypoints=websecure
-        - traefik.http.routers.rankon-api.tls=true
-        - traefik.http.routers.rankon-api.tls.certresolver=letsencrypt
-        - traefik.http.routers.rankon-api.service=rankon
-        - traefik.http.routers.rankon-api.middlewares=rankon-ratelimit
-        - traefik.http.middlewares.rankon-ratelimit.ratelimit.average=100
-        - traefik.http.middlewares.rankon-ratelimit.ratelimit.burst=50
-        - traefik.http.middlewares.rankon-ratelimit.ratelimit.period=1m
-        # Service
-        - traefik.http.services.rankon.loadbalancer.server.port=3000
+      - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST:-https://eu.i.posthog.com}
+    depends_on:
+      - backend
+    labels:
+      - traefik.enable=true
 
-  # FastAPI Backend
+      # HTTP -> HTTPS redirect
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.routers.rankon-web.rule=Host(`rankon.cloud.conusai.com`)
+      - traefik.http.routers.rankon-web.entrypoints=web
+      - traefik.http.routers.rankon-web.middlewares=redirect-to-https
+
+      # HTTPS router
+      - traefik.http.routers.rankon-websecure.rule=Host(`rankon.cloud.conusai.com`)
+      - traefik.http.routers.rankon-websecure.entrypoints=websecure
+      - traefik.http.routers.rankon-websecure.tls=true
+      - traefik.http.routers.rankon-websecure.tls.certresolver=letsencrypt
+      - traefik.http.services.rankon.loadbalancer.server.port=3000
+    networks:
+      - dokploy-network
+    restart: unless-stopped
+
+  # FastAPI Backend (internal)
   backend:
-    image: ghcr.io/liutauras-m/conusai-rankonai-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     environment:
-      # Use the service name (works regardless of stack prefix)
       - REDIS_URL=redis://redis:6379
       - MAX_CONCURRENT_ANALYSES=5
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -69,56 +68,30 @@ services:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - MISTRAL_API_KEY=${MISTRAL_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    depends_on:
+      - redis
     networks:
-      - rankon
       - dokploy-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == worker
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-      # NO traefik labels - backend is internal only (frontend proxies to it)
+    restart: unless-stopped
 
   # Redis
   redis:
     image: redis:alpine
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
     networks:
-      - rankon
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == worker
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
+      - dokploy-network
+    restart: unless-stopped
 
   # TaskIQ Worker
   worker:
-    image: ghcr.io/liutauras-m/conusai-rankonai-backend:latest
-    command: python -m taskiq worker tasks.taskiq_worker:broker --fs-discover
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: taskiq worker tasks.taskiq_worker:broker --fs-discover
     environment:
       - PYTHONPATH=/app
-      # Use the service name (works regardless of stack prefix)
       - REDIS_URL=redis://redis:6379
       - MAX_CONCURRENT_ANALYSES=5
       - CACHE_TTL=3600
@@ -128,24 +101,15 @@ services:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - MISTRAL_API_KEY=${MISTRAL_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    depends_on:
+      - redis
     networks:
-      - rankon
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == worker
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-
-networks:
-  rankon:
-    driver: overlay
-    attachable: true
-  dokploy-network:
-    external: true
+      - dokploy-network
+    restart: unless-stopped
 
 volumes:
   redis_data:
+
+networks:
+  dokploy-network:
+    external: true
