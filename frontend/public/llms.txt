@@ -1,0 +1,41 @@
+# Rank on AI - AI Visibility Checker
+
+> Check if ChatGPT, Claude, Perplexity and other AI assistants can find and recommend your brand.
+
+## About
+
+Rank on AI is a free tool that analyzes your website's visibility to AI assistants. As more people use AI chatbots for recommendations instead of traditional search engines, it's crucial to ensure your brand appears in AI-generated responses.
+
+## What We Do
+
+- **AI Visibility Score**: Get a comprehensive score showing how discoverable your website is to AI assistants
+- **Technical Analysis**: Check robots.txt, llms.txt, sitemap, and structured data
+- **Content Analysis**: Evaluate how well your content is optimized for AI understanding
+- **AI Bot Access**: See which AI crawlers can access your site (GPTBot, ClaudeBot, PerplexityBot, etc.)
+- **Actionable Recommendations**: Get specific tips to improve your AI visibility
+
+## Key Features
+
+1. Free analysis - no signup required
+2. Instant results
+3. Multi-model AI insights (GPT-4, Grok)
+4. Social media optimization analysis
+5. Keyword and marketing recommendations
+
+## How to Use
+
+1. Visit https://rankon.cloud.conusai.com
+2. Enter your website URL
+3. Get your AI visibility report in seconds
+
+## Contact
+
+- Website: https://rankon.cloud.conusai.com
+- Powered by: ConusAI (https://www.conusai.com)
+
+## Technical Details
+
+- Built with Next.js and FastAPI
+- Analyzes 18+ AI bot user agents
+- Checks Open Graph, Twitter Card, and structured data
+- Evaluates content quality and keyword optimization

@@ -1,0 +1,51 @@
+# Rank on AI - robots.txt
+# https://rankon.cloud.conusai.com
+
+User-agent: *
+Allow: /
+
+# AI Crawlers - Welcome!
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+# Sitemap
+Sitemap: https://rankon.cloud.conusai.com/sitemap.xml
+
+# LLMs.txt
+# See: https://rankon.cloud.conusai.com/llms.txt

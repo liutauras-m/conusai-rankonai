@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 	authors: [{ name: "Rank on AI" }],
 	creator: "Rank on AI",
 	publisher: "Rank on AI",
-	metadataBase: new URL("https://rankonai.com"),
+	metadataBase: new URL("https://rankon.cloud.conusai.com"),
 	alternates: {
 		canonical: "/",
 	},
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
 	openGraph: {
 		type: "website",
 		locale: "en_US",
-		url: "https://rankonai.com",
+		url: "https://rankon.cloud.conusai.com",
 		siteName: "Rank on AI",
 		title: "Rank on AI Search - Check Your AI Visibility",
 		description:
