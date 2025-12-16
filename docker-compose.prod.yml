@@ -6,8 +6,8 @@ services:
     image: ghcr.io/liutauras-m/conusai-rankonai-frontend:latest
     environment:
       - NODE_ENV=production
-      # Use full Swarm service name: <stack>_<service>
-      - BACKEND_URL=http://rankon_backend:8000
+      # Use the service name (works regardless of stack prefix)
+      - BACKEND_URL=http://backend:8000
       - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
       - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
@@ -43,6 +43,16 @@ services:
         - traefik.http.routers.rankon-secure.tls=true
         - traefik.http.routers.rankon-secure.tls.certresolver=letsencrypt
         - traefik.http.routers.rankon-secure.service=rankon
+        # API Router - apply rate limiting only to /api
+        - traefik.http.routers.rankon-api.rule=Host(`rankon.cloud.conusai.com`) && PathPrefix(`/api`)
+        - traefik.http.routers.rankon-api.entrypoints=websecure
+        - traefik.http.routers.rankon-api.tls=true
+        - traefik.http.routers.rankon-api.tls.certresolver=letsencrypt
+        - traefik.http.routers.rankon-api.service=rankon
+        - traefik.http.routers.rankon-api.middlewares=rankon-ratelimit
+        - traefik.http.middlewares.rankon-ratelimit.ratelimit.average=100
+        - traefik.http.middlewares.rankon-ratelimit.ratelimit.burst=50
+        - traefik.http.middlewares.rankon-ratelimit.ratelimit.period=1m
         # Service
         - traefik.http.services.rankon.loadbalancer.server.port=3000
 
@@ -50,8 +60,8 @@ services:
   backend:
     image: ghcr.io/liutauras-m/conusai-rankonai-backend:latest
     environment:
-      # Use full Swarm service name for Redis
-      - REDIS_URL=redis://rankon_redis:6379
+      # Use the service name (works regardless of stack prefix)
+      - REDIS_URL=redis://redis:6379
       - MAX_CONCURRENT_ANALYSES=5
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - XAI_API_KEY=${XAI_API_KEY}
@@ -108,8 +118,8 @@ services:
     command: python -m taskiq worker tasks.taskiq_worker:broker --fs-discover
     environment:
       - PYTHONPATH=/app
-      # Use full Swarm service name for Redis
-      - REDIS_URL=redis://rankon_redis:6379
+      # Use the service name (works regardless of stack prefix)
+      - REDIS_URL=redis://redis:6379
       - MAX_CONCURRENT_ANALYSES=5
       - CACHE_TTL=3600
       - OPENAI_API_KEY=${OPENAI_API_KEY}
