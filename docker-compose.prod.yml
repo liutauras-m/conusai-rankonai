@@ -3,7 +3,7 @@ version: "3.8"
 services:
   # Next.js Frontend
   frontend:
-    image: ghcr.io/liutauras-m/conusai-rankonai-frontend:20251216-0312
+    image: ghcr.io/liutauras-m/conusai-rankonai-frontend:latest
     environment:
       - NODE_ENV=production
       - BACKEND_URL=http://backend:8000
@@ -35,7 +35,7 @@ services:
 
   # FastAPI Backend (internal)
   backend:
-    image: ghcr.io/liutauras-m/conusai-rankonai-backend:20251216-0312
+    image: ghcr.io/liutauras-m/conusai-rankonai-backend:latest
     environment:
       - REDIS_URL=redis://redis:6379
       - MAX_CONCURRENT_ANALYSES=5
@@ -63,7 +63,7 @@ services:
 
   # TaskIQ Worker
   worker:
-    image: ghcr.io/liutauras-m/conusai-rankonai-backend:20251216-0312
+    image: ghcr.io/liutauras-m/conusai-rankonai-backend:latest
     command: taskiq worker tasks.taskiq_worker:broker --fs-discover
     environment:
       - PYTHONPATH=/app
