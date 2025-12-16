@@ -1,9 +1,9 @@
+version: "3.8"
+
 services:
   # Next.js Frontend
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/liutauras-m/conusai-rankonai-frontend:latest
     environment:
       - NODE_ENV=production
       - BACKEND_URL=http://backend:8000
@@ -15,18 +15,19 @@ services:
       - backend
     labels:
       - traefik.enable=true
-
+      - traefik.docker.network=dokploy-network
       # HTTP -> HTTPS redirect
-      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.rankon-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.rankon-redirect.redirectscheme.permanent=true
       - traefik.http.routers.rankon-web.rule=Host(`rankon.cloud.conusai.com`)
       - traefik.http.routers.rankon-web.entrypoints=web
-      - traefik.http.routers.rankon-web.middlewares=redirect-to-https
-
+      - traefik.http.routers.rankon-web.middlewares=rankon-redirect
       # HTTPS router
       - traefik.http.routers.rankon-websecure.rule=Host(`rankon.cloud.conusai.com`)
       - traefik.http.routers.rankon-websecure.entrypoints=websecure
       - traefik.http.routers.rankon-websecure.tls=true
       - traefik.http.routers.rankon-websecure.tls.certresolver=letsencrypt
+      - traefik.http.routers.rankon-websecure.service=rankon
       - traefik.http.services.rankon.loadbalancer.server.port=3000
     networks:
       - dokploy-network
@@ -34,9 +35,7 @@ services:
 
   # FastAPI Backend (internal)
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/liutauras-m/conusai-rankonai-backend:latest
     environment:
       - REDIS_URL=redis://redis:6379
       - MAX_CONCURRENT_ANALYSES=5
@@ -55,7 +54,7 @@ services:
   # Redis
   redis:
     image: redis:alpine
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     networks:
@@ -64,9 +63,7 @@ services:
 
   # TaskIQ Worker
   worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/liutauras-m/conusai-rankonai-backend:latest
     command: taskiq worker tasks.taskiq_worker:broker --fs-discover
     environment:
       - PYTHONPATH=/app
